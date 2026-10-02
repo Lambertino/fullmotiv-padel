@@ -553,11 +553,14 @@ function gauss(){ let u=0,v=0; while(!u) u=Math.random(); while(!v) v=Math.rando
 function sideHeights(z){ const a=Math.abs(z); if(a>=8) return [3,4]; if(a>=6) return [2,3]; return [0,3]; }
 
 const settings = {format:'quick', golden:true, diff:'normal', assist:true};
-const ballScale=()=>state.demo?1:(DIFF[settings.diff].ballScale||1); // Loisir : la balle vit 20 % plus lentement
+const ballScale=()=>state.demo?1:(DIFF[settings.diff].ballScale||1); // la balle vit plus lentement : -32 % en Loisir, -10 % en Compétition, -5 % en Pro
+// easy/normal/pro : adversaires. mate/matePro : Léa, votre partenaire, qui garde son niveau pour ne pas vous handicaper.
 const DIFF = {
-  easy:  {speed:3.8, err:1.05, react:0.34, bad:0.16, ballScale:0.8},
-  normal:{speed:4.6, err:0.72, react:0.22, bad:0.09},
-  pro:   {speed:5.3, err:0.45, react:0.14, bad:0.045}
+  easy:  {speed:3.8, err:1.05, react:0.34, bad:0.16, ballScale:0.68},
+  normal:{speed:4.2, err:0.85, react:0.27, bad:0.12, ballScale:0.9},
+  pro:   {speed:4.9, err:0.56, react:0.18, bad:0.065, ballScale:0.95},
+  mate:   {speed:4.6, err:0.72, react:0.22, bad:0.09},
+  matePro:{speed:5.3, err:0.45, react:0.14, bad:0.045}
 };
 
 /* ===================== renderer ===================== */
@@ -1118,7 +1121,7 @@ function clearsNet(p0,v){
   const y=p0.y+v.y*t-0.5*G*t*t, x=p0.x+v.x*t;
   return y>netH(x)+BR+0.07;
 }
-function partnerDiff(){ return settings.diff==='easy'?'normal':settings.diff; }
+function partnerDiff(){ return settings.diff==='pro'?'matePro':'mate'; }
 
 function nextAfterPoint(){
   const w=state.pending;
