@@ -144,25 +144,25 @@ body.touch #joyzone{display:block}
 body.touch #cards{display:none}
 body.touch .shot kbd,body.touch #moveKeys,body.touch #powerBtn kbd{display:none}
 body.touch #suggest .kc{display:none}
-body.touch #score{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);min-width:240px}
+body.touch #score{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:16px;transform:none;min-width:220px;width:max-content;max-width:calc(100% - 136px)}
 body.touch #hud .bar{justify-content:flex-end}
-body.touch #hint{top:auto;bottom:calc(200px + env(safe-area-inset-bottom,0px))}
+body.touch #hint{top:calc(100px + env(safe-area-inset-top,0px));bottom:auto}
 body.touch .shot{width:74px;height:74px}
 @media (max-width:820px){
   #cards{display:none}
   #score{min-width:230px}
 }
 @media (max-width:600px){
-  #score{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);min-width:220px}
+  #score{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:16px;transform:none;min-width:220px;width:max-content;max-width:calc(100% - 136px)}
   #hud .bar{justify-content:flex-end}
   .shot{width:68px;height:68px}
-  #hint{top:auto;bottom:calc(200px + env(safe-area-inset-bottom,0px));padding:10px 12px}
+  #hint{top:calc(100px + env(safe-area-inset-top,0px));bottom:auto;padding:10px 12px}
   #hint .h-title{font-size:21px}
   #hint .h-opt{font-size:13.5px}
   #moveKeys{display:none}
 }
 @media (max-aspect-ratio:1/1){
-  #hint{top:auto;bottom:calc(200px + env(safe-area-inset-bottom,0px));padding:10px 12px}
+  #hint{top:calc(100px + env(safe-area-inset-top,0px));bottom:auto;padding:10px 12px}
   #hint .h-title{font-size:21px}
   #hint .h-opt{font-size:13.5px}
   #moveKeys{display:none}
