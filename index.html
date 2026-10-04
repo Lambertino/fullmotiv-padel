@@ -771,6 +771,17 @@ function buildArena(){
   const arc2=new THREE.Mesh(new THREE.TorusGeometry(16,0.05,4,72,Math.PI),basic(0x7a3550)); arc2.position.set(0,0,-16.5); scene.add(arc2);
 }
 
+// Avec la caméra basse, le haut du mur proche (grillage, barres, poteaux) passe devant le joueur :
+// on l'atténue fortement, comme dans les jeux de sport, sans toucher aux bandeaux sponsors du bas.
+function fadeNearWall(){
+  scene.traverse(o=>{
+    if(!o.isMesh || o.position.z<9.5 || o.position.z>10.6 || o.position.y<0.6 || Math.abs(o.position.x)>5.6) return;
+    const m=o.material.clone(); m.transparent=true; m.depthWrite=false;
+    m.opacity=Math.min(m.opacity==null?1:m.opacity, m.map?0.12:0.22);
+    o.material=m;
+  });
+}
+
 /* ===================== players ===================== */
 let racketGeoCache=null;
 function racketGeo(){
@@ -1609,15 +1620,16 @@ function fitCamera(){
   const w=stage.clientWidth||innerWidth, h=stage.clientHeight||innerHeight;
   renderer.setSize(w,h,false);
   // réserve une bande en bas pour le HUD : le terrain est cadré au-dessus
-  const reserve=Math.round(Math.min(h*0.24,(w/h)<0.8?135:(w/h)<1.2?175:70)), hv=h-reserve;
+  const reserve=Math.round(Math.min(h*0.24,(w/h)<0.8?20:(w/h)<1.2?175:70)), hv=h-reserve; // portrait : le terrain descend vers les commandes
   const a=w/hv; camera.aspect=a;
   const t=clamp((1.45-a)/(1.45-0.55),0,1);
-  // mobile : vue 3/4 basse comme sur desktop (avant : vue quasi zénithale)
-  const L={p:[0,11.6,19.6],l:[0,0,1.1],f:44}, P={p:[0,15.5,20.5],l:[0,0,0.3],f:58};
+  // vue 3/4 basse pour lire la hauteur des balles : ~23° au-dessus de l'horizontale sur desktop, ~27° sur mobile
+  // (avant : 32° et 37°)
+  const L={p:[0,8.4,19.8],l:[0,0.5,1.0],f:42}, P={p:[0,11.2,21.5],l:[0,0.4,0.2],f:56};
   const lerp=(x,y)=>x+(y-x)*t;
   const touchShift=document.body.classList.contains('touch')&&a>1?-0.6:0;
   camera.position.set(0,lerp(L.p[1],P.p[1]),lerp(L.p[2],P.p[2]));
-  camera.lookAt(0,0,lerp(L.l[2],P.l[2])+touchShift);
+  camera.lookAt(0,lerp(L.l[1],P.l[1]),lerp(L.l[2],P.l[2])+touchShift);
   const dNear=Math.hypot(camera.position.y,camera.position.z-10.5);
   const need=Math.atan(lerp(6.5,5.6)/dNear);
   const vf=2*Math.atan(Math.tan(need)/a)*180/Math.PI;
@@ -1773,6 +1785,7 @@ function frame(now){
 async function boot(){
   try{ await Promise.race([Promise.all([document.fonts.load('800 40px "Saira Condensed"'),document.fonts.load('600 20px "Saira"')]),new Promise(r=>setTimeout(r,1800))]); }catch(e){}
   buildArena();
+  fadeNearWall();
   makePlayer(0,0,'Vous',{shirt:0xff8fb4,shorts:0x0b2b2d,skin:0xe8b996,hair:0x3a2618,racket:0x0b2b2d,accent:0xffffff,style:'short',number:'7',bottom:'shorts'},true);
   makePlayer(0,1,'Léa',{shirt:0xffc4d4,shorts:0x0b2b2d,skin:0xc68e68,hair:0x111111,racket:0xd9ff3c,accent:0xd9ff3c,style:'ponytail',number:'11',bottom:'skirt'},false);
   makePlayer(1,0,'Nico',{shirt:0xf3efe6,shorts:0x1d4a44,skin:0xf1cfb0,hair:0x6b4a2b,racket:0xff9fbe,accent:0x1d4a44,style:'cap',number:'4',bottom:'shorts'},false);
