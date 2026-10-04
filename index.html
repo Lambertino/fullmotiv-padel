@@ -67,6 +67,7 @@ button:focus-visible,input:focus-visible+span,summary:focus-visible{outline:2px 
 #hint p{margin:0;font:500 14.5px/1.45 var(--body);max-width:52ch}
 #hint b{color:var(--accent);font-weight:700}
 @keyframes hintIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes aimIn{from{opacity:0}to{opacity:1}}
 .kc{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 7px;border-radius:6px;background:#f3f7f5;color:#0b1733;border-bottom:4px solid #a9c4bd;font:800 17px/1 var(--display);letter-spacing:.02em;box-sizing:border-box}
 .kc.wide{min-width:58px}
 .kc.hot{background:var(--accent);border-bottom-color:var(--accent-deep)}
@@ -278,6 +279,29 @@ body.touch .hit-expert{display:none}
 .coach-steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:12px;font:400 15.5px/1.5 var(--body);color:var(--muted)}
 .coach-steps b{color:var(--fg);font-weight:600}
 .coach-steps li::marker{color:var(--accent);font:800 17px var(--display)}
+/* ---------- explication des coups, visée, smash ciblé ---------- */
+#suggest .sg-main{display:flex;flex-direction:column;gap:2px;line-height:1}
+#suggest .sg-main small{font:500 11px/1.1 var(--body);letter-spacing:0;color:var(--muted)}
+#aimHint{position:absolute;transform:translate(-50%,-100%);font:700 11.5px/1 var(--body);color:var(--neon);background:rgba(9,34,33,.75);border:1px solid rgba(159,227,210,.5);border-radius:5px;padding:4px 7px;pointer-events:none;white-space:nowrap}
+#aimHint .kc{height:18px;min-width:18px;font-size:11px;border-bottom-width:2px;padding:0 4px;margin-left:3px}
+#aim{box-sizing:border-box;position:absolute;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(640px,calc(100% - 32px));display:flex;flex-direction:column;gap:12px;align-items:center;background:rgba(6,21,20,.82);border:2px solid var(--accent);border-radius:12px;padding:14px 16px 12px;box-shadow:0 0 40px rgba(255,177,200,.3);animation:aimIn .2s ease-out;z-index:5}
+#aim .aim-title{font:800 26px/1 var(--display);text-transform:uppercase;transform:skewX(-8deg);letter-spacing:.04em}
+#aim .aim-title em{font-style:normal;color:var(--accent);font-size:18px;margin-left:6px}
+#aim .aim-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%}
+.aim-opt{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border-radius:8px;border:1px solid var(--edge);background:var(--panel-solid);color:var(--fg);touch-action:none;min-width:0}
+.aim-opt b{font:800 18px/1 var(--display);letter-spacing:.06em}
+.aim-opt small{font:500 11.5px/1.25 var(--body);color:var(--muted);text-align:center}
+.aim-opt[data-trick="por3"]{border-color:#ff9fbe}
+.aim-opt[data-trick="por4"]{border-color:#9fe3d2}
+.aim-opt[data-trick="vitre"]{border-color:#ffffff}
+.aim-opt:hover,.aim-opt:active{background:#123c3e}
+.aim-opt:disabled{opacity:.35}
+.aim-timer{width:100%;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.aim-timer i{display:block;height:100%;background:var(--accent)}
+body.touch #aim .kc{display:none}
+body.touch #aim{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+.aim-tag{position:absolute;transform:translate(-50%,-120%);font:800 13px/1 var(--display);letter-spacing:.1em;color:var(--fg);background:rgba(6,21,20,.85);border:2px solid;border-radius:5px;padding:3px 6px;pointer-events:none}
+body.aiming #hitBtn,body.aiming #suggest{opacity:.3}
 @media (prefers-reduced-motion:reduce){.callout,#banner.show,#power.ready #powerBtn{animation-duration:.01s}}
 </style>
 </head>
@@ -289,6 +313,16 @@ body.touch .hit-expert{display:none}
   <div id="banner" hidden><div class="b-main"></div><div class="b-sub"></div></div>
   <div id="hint" hidden></div>
   <div id="suggest" hidden data-testid="shot-suggestion"></div>
+  <div id="aimHint" hidden data-testid="aim-hint"><span class="only-desk">Visez <span class="kc">←</span><span class="kc">→</span></span><span class="only-touch">Visez au joystick</span></div>
+  <div id="aim" hidden data-testid="smash-aim">
+    <div class="aim-title">Smash ! <em>Choisissez la trajectoire</em></div>
+    <div class="aim-opts">
+      <button class="aim-opt" data-trick="por3" data-testid="aim-por3"><span class="kc">←</span><b>POR 3</b><small>Rebond haut, sort sur le côté</small></button>
+      <button class="aim-opt" data-trick="por4" data-testid="aim-por4"><span class="kc">↑</span><b>POR 4</b><small>Rebond haut, sort par le fond</small></button>
+      <button class="aim-opt" data-trick="vitre" data-testid="aim-vitre"><span class="kc">→</span><b>DANS LA VITRE</b><small>Coin adverse, plus sûr</small></button>
+    </div>
+    <div class="aim-timer"><i></i></div>
+  </div>
   <div id="youTag" hidden data-testid="you-tag">VOUS</div>
 
   <div id="hud" hidden>
@@ -397,6 +431,7 @@ body.touch .hit-expert{display:none}
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" id="tab-rules" data-tab="rules" aria-selected="true">Règles</button>
         <button class="tab" role="tab" id="tab-keys" data-tab="keys" aria-selected="false">Touches</button>
+        <button class="tab" role="tab" id="tab-shots" data-tab="shots" aria-selected="false">Les coups</button>
         <button class="tab" role="tab" id="tab-glass" data-tab="glass" aria-selected="false">Jouer les vitres</button>
       </div>
 
@@ -453,6 +488,24 @@ body.touch .hit-expert{display:none}
         </table>
       </div>
 
+      <div class="tabpanel" data-panel="shots" role="tabpanel" hidden>
+        <div class="rule"><h3>Un seul bouton, le bon coup</h3><p><b>Espace</b>, un clic ou le bouton <b>FRAPPER</b> suffisent : le jeu choisit le coup selon la situation. Son nom et la raison s'affichent au-dessus de votre joueur et sur le bouton, par exemple « LOB · adversaires au filet ».</p></div>
+        <table class="keytab">
+          <tr><th>Coup</th><th>Le jeu le choisit quand…</th></tr>
+          <tr><td>Drive</td><td>la balle a rebondi chez vous et arrive à hauteur de hanche. C'est le coup de base.</td></tr>
+          <tr><td>Volée</td><td>vous la prenez avant le rebond, en général près du filet.</td></tr>
+          <tr><td>Lob</td><td>les adversaires sont au filet et vous êtes au fond. Pour le forcer : <kbd class="k">J</kbd> ou glisser ↑ sur FRAPPER.</td></tr>
+          <tr><td>Smash</td><td>la balle est haute et vous êtes près du filet. Pour le forcer : <kbd class="k">K</kbd> ou glisser ↓.</td></tr>
+          <tr><td>Bandeja</td><td>la balle est haute mais vous êtes au fond : smash contrôlé, sans prendre de risque.</td></tr>
+          <tr><td>Contre-vitre</td><td>la balle vous a dépassé : votre joueur la renvoie contre sa propre vitre.</td></tr>
+          <tr><td>Double vitre</td><td>parfois, un drive croisé part dans le coin adverse pour toucher deux vitres.</td></tr>
+        </table>
+        <div class="rulegrid">
+          <div class="rule"><h3>Viser</h3><p>Le losange vert sur le terrain adverse montre où partira votre frappe. Déplacez-le avec <b>← →</b> ou le <b>joystick</b> au moment de frapper. Sans direction, la balle part en diagonale.</p></div>
+          <div class="rule"><h3>Smash ciblé</h3><p>Sur certains smashs, le jeu se fige et vous montre trois trajectoires : <b>POR 3</b> (la balle rebondit haut et sort sur le côté), <b>POR 4</b> (elle sort par le fond) ou <b>DANS LA VITRE</b> (plus sûr). Choisissez avec <b>← ↑ →</b> ou touchez l'option. Les sorties ne sont pas garanties : selon votre position, une sur deux à quatre sur cinq sort vraiment. Sinon, la balle reste en jeu.</p></div>
+        </div>
+      </div>
+
       <div class="tabpanel" data-panel="glass" role="tabpanel" hidden>
         <div class="diagram" aria-label="Schéma vu de côté : la balle rebondit, touche la vitre du fond puis ressort vers le joueur">
           <svg viewBox="0 0 640 230" role="img">
@@ -504,6 +557,7 @@ body.touch .hit-expert{display:none}
         <li><span class="only-touch">Déplacez-vous avec le <b>joystick</b> en bas à gauche.</span><span class="only-desk">Déplacez-vous avec <b>ZQSD</b>, <b>WASD</b> ou les <b>flèches</b>.</span></li>
         <li><b>Pour servir</b>, <span class="only-touch">touchez le gros bouton rose <b>SERVIR</b>.</span><span class="only-desk">appuyez sur <b>Espace</b> ou cliquez.</span> La balle part toute seule en diagonale.</li>
         <li><b>Quand la balle arrive</b>, placez-vous sur l'<b>hexagone</b> au sol. L'aide à la frappe renvoie la balle automatiquement. <span class="only-touch">Vous pouvez aussi toucher <b>FRAPPER</b> : le jeu choisit le bon coup et affiche son nom sur le bouton. Glissez vers le haut pour un lob, vers le bas pour un smash.</span><span class="only-desk">Vous pouvez aussi appuyer sur <b>Espace</b> ou cliquer : le jeu choisit le bon coup et affiche son nom sur le bouton. Les experts peuvent forcer un lob avec <b>J</b> et un smash avec <b>K</b>.</span></li>
+        <li><b>Visez</b> avec le losange vert sur le terrain adverse : <span class="only-desk"><b>← →</b> au moment de frapper.</span><span class="only-touch">orientez le <b>joystick</b> au moment de frapper.</span> Sur certains smashs, le jeu se fige : choisissez <b>POR 3</b>, <b>POR 4</b> ou <b>DANS LA VITRE</b>.</li>
       </ol>
       <button class="cta" id="coachGo" data-testid="btn-coach-go">C'est parti</button>
     </div>
@@ -930,7 +984,7 @@ function integrate(s, dt, cb){
   if(p.y<BR){
     p.y=BR;
     if(v.y<0){ const vy=-v.y; v.x*=0.86; v.z*=0.86;
-      if(vy>0.7){ v.y=vy*0.72; cb&&cb('floor',{x:p.x,z:p.z}); }
+      if(vy>0.7){ v.y=vy*0.72*(s.kick||1); s.kick=0; cb&&cb('floor',{x:p.x,z:p.z}); }
       else { v.y=0; v.x*=0.97; v.z*=0.97; if(!s.rolling){ s.rolling=true; cb&&cb('floor',{x:p.x,z:p.z}); } }
     }
   }
@@ -952,7 +1006,7 @@ function integrate(s, dt, cb){
   }
 }
 function simulate(maxT){
-  const s={p:ball.p.clone(), v:ball.v.clone(), outside:ball.outside, netTouched:ball.netTouched, rolling:ball.rolling};
+  const s={kick:ball.kick||0, p:ball.p.clone(), v:ball.v.clone(), outside:ball.outside, netTouched:ball.netTouched, rolling:ball.rolling};
   let side=R.crossed?1-R.lastHitter:-1, b=R.crossed?R.bounces:0, dead=false, first=null, gl=R.glass;
   const cb=(type,d)=>{
     if(type==='cross'){ side=d.to; b=0; gl=false; }
@@ -1138,7 +1192,7 @@ function executeServe(){
   const p0=ball.p.clone();
   const v=solve(p0,tx,tz,T, Math.random()<(s.human?(type==='smash'?0.07:0.025):0.03));
   if(ball.power){} // power not used on serve
-  ball.v.copy(v); ball.netTouched=false; ball.rolling=false; ball.outside=false;
+  ball.v.copy(v); ball.kick=0; ball.netTouched=false; ball.rolling=false; ball.outside=false;
   R.lastHitter=s.team; R.crossed=false; R.bounces=0; R.isServe=true; R.touchedNet=false; R.live=true;
   swingAnim(s,'volley');
   state.mode='rally'; state.planT=0;
@@ -1202,14 +1256,42 @@ function contreVitreChance(pl){
   if(ball.p.y<1.2) return 0.4;        // balle basse qui part vers la vitre
   return 0.15;
 }
-function doHit(pl,type,q){
+// ===== Smash ciblé : POR 3 (sortie côté), POR 4 (sortie fond), DANS LA VITRE (coin, sûr) =====
+function trickOutcome(p0,v,kick,team,path){
+  const s={p:p0.clone(),v:v.clone(),outside:false,netTouched:false,rolling:false,kick};
+  let res=null, bounced=false;
+  const cb=(ty,d)=>{ if(res) return;
+    if(ty==='floor'){ if(sideOf(d.z)===team) res='fault'; else if(bounced) res='floor2'; else { bounced=true; path.land=new V3(d.x,0,d.z); } }
+    else if(ty==='wall'){ if(!bounced) res='fault'; else if(d.kind==='glass' && !path.glass) path.glass=true; }
+    else if(ty==='out') res=bounced?('out-'+d.wall):'fault';
+    else if(ty==='net') res='fault'; };
+  path.pts=[];
+  for(let i=0;i<1300 && !res;i++){ integrate(s,1/360,cb); if(i%9===0) path.pts.push(s.p.clone()); } // pas fin : même résultat que la physique du jeu
+  if(!res) res='alive';
+  return res;
+}
+function solveTrick(p0, team, kind){
+  const od=teamDir(1-team), side=(Math.abs(input.x)>0.2?Math.sign(input.x):(Math.sign(-p0.x)||1));
+  const kicks = kind==='vitre'?[1]:[1.5,1.7,1.9,2.1,2.3,2.5,2.7,2.9];
+  const zs = kind==='por3'?[2.8,3.6,4.4]:kind==='por4'?[5.0,5.6,6.2,6.8,7.4]:[8.2,8.6];
+  const txs = kind==='por3'?[CW-2.6,CW-1.9,CW-1.2].map(x=>side*Math.max(0.6,x)):[kind==='por4'?side*Math.min(1,CW-1.5):side*(CW-0.7)];
+  for(const kick of kicks) for(const tx of txs) for(const zz of zs) for(let T=0.24;T<=(kind==='vitre'?0.8:kind==='por4'?0.64:0.52);T+=0.04){
+    const v=solve(p0,tx,od*zz,T,false); if(Math.hypot(v.x,v.z)>24) continue; const path={}; // vitesse réaliste (≤ 24 m/s)
+    const r=trickOutcome(p0,v,kick,team,path);
+    let ok = kind==='por3' ? (r==='out-side'||r==='out-door') : kind==='por4' ? r==='out-back' : (r!=='fault' && path.glass);
+    if(ok && kind!=='vitre') ok = [[0.94,1],[1,0.97],[1,1.03]].every(([km,vm])=>trickOutcome(p0,v.clone().multiplyScalar(vm),kick*km,team,{})===r); // marge : la sortie doit tenir malgré de petites variations
+    if(ok) return {v,kick,pts:path.pts,land:path.land,kind};
+  }
+  return null;
+}
+function doHit(pl,type,q,trick){
   const t=pl.team, o=1-t, od=teamDir(o), p0=ball.p.clone();
   const volley=R.bounces===0, glassRet=R.glass;
   state.hitId++; if(pl.human) state.trGlass=glassRet;
   const opps=players.filter(p=>p.team===o);
   let aimX; const k=K();
   if(pl.human){
-    aimX = (Math.abs(input.x)>0.2 ? input.x*3.7 : -Math.sign(p0.x||1)*rand(0.8,3.2))*k;
+    aimX = (Math.abs(input.x)>0.2 ? input.x*3.7 : -Math.sign(p0.x||1)*rand(1.4,2.6))*k;
   } else {
     const cands=[-3.8,-2.2,-0.6,0.6,2.2,3.8].map(c=>c*k);
     let best=0,bs=-1; for(const c of cands){ const sc=Math.min(...opps.map(op=>Math.abs(op.pos.x-c)))+Math.random()*1.4; if(sc>bs){bs=sc;best=c;} }
@@ -1244,7 +1326,9 @@ function doHit(pl,type,q){
   if(doubleVitre) sigma*=0.6;
   const xl=CW-(doubleVitre?0.55:0.7), tx=clamp(aimX,-xl,xl)+gauss()*sigma;
   const tz2=tz+gauss()*sigma*0.75;
-  if(cv){ eff='contre'; ball.v.copy(cv); } else ball.v.copy(solve(p0,tx,tz2,T,netErr));
+  ball.kick=0; ball.trick=null;
+  if(trick){ eff='smash'; ball.v.copy(trick.v); ball.kick=trick.kick; ball.trick=trick.ok?trick.kind:null; }
+  else if(cv){ eff='contre'; ball.v.copy(cv); } else ball.v.copy(solve(p0,tx,tz2,T,netErr));
   ball.netTouched=false; ball.rolling=false; ball.power=power;
   const wasServeReturn=R.isServe;
   R.lastHitter=t; R.crossed=false; R.bounces=0; R.touchedNet=false; R.isServe=false; R.glass=false; R.gh=0; R.gw='';
@@ -1254,7 +1338,8 @@ function doHit(pl,type,q){
   for(const p of opps) p.react=DIFF[o===0?partnerDiff():settings.diff].react;
   if(pl.human && !state.demo){
     let label=null;
-    if(eff==='contre') label=null;
+    if(trick) label=trick.kind==='por3'?'SMASH POR 3':trick.kind==='por4'?'SMASH POR 4':'SMASH DANS LA VITRE';
+    else if(eff==='contre') label=null;
     else if(power) label='POWER SHOT';
     else if(eff==='bandeja') label='BANDEJA';
     else if(eff==='smash') label='SMASH !';
@@ -1278,6 +1363,62 @@ function autoType(pl){ // coup choisi par le jeu (bouton FRAPPER / Espace)
   if(opps.every(o=>Math.abs(o.pos.z)<5) && Math.abs(ball.p.z)>5) return 'lob';
   return 'volley';
 }
+// Frappe du joueur : un smash près du filet ouvre parfois le smash ciblé (ralenti + choix de trajectoire)
+function humanHit(pl,type,q){
+  if(type==='smash' && !state.training && !state.demo && ball.p.y>2.0 && Math.abs(ball.p.z)<6.2){
+    const now=performance.now()/1000;
+    const first=!state.aimCount;
+    if(first || (now-(state.lastAim||0)>20 && Math.random()<0.4)){ if(enterAim(pl,q)) return; }
+  }
+  doHit(pl,type,q);
+}
+const aimEl=document.getElementById('aim'), aimLines=[], aimLabels={};
+const AIM_COL={por3:0xff9fbe,por4:0x9fe3d2,vitre:0xffffff};
+function enterAim(pl,q){
+  const p0=ball.p.clone(), opts={};
+  for(const k of ['por3','por4','vitre']) opts[k]=solveTrick(p0,pl.team,k);
+  if(!opts.por3 && !opts.por4) return false;
+  state.aim={pl,q,opts,t:2.8,total:2.8}; state.aimCount=(state.aimCount||0)+1; state.lastAim=performance.now()/1000;
+  for(const k in opts){
+    const o=opts[k], btn=aimEl.querySelector(`[data-trick="${k}"]`);
+    btn.disabled=!o;
+    if(!o) continue;
+    const curve=new THREE.CatmullRomCurve3(o.pts);
+    const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,Math.max(8,o.pts.length*2),0.05,5,false),basic(AIM_COL[k],{transparent:true,opacity:0.9,depthWrite:false}));
+    scene.add(tube); aimLines.push(tube);
+    const ring=new THREE.Mesh(new THREE.RingGeometry(0.28,0.4,20),basic(AIM_COL[k],{transparent:true,opacity:0.9,depthWrite:false,side:THREE.DoubleSide}));
+    ring.rotation.x=-Math.PI/2; ring.position.set(o.land.x,0.03,o.land.z); scene.add(ring); aimLines.push(ring);
+    aimLabels[k]=new V3(o.land.x,0.7,o.land.z);
+  }
+  aimEl.hidden=false; document.body.classList.add('aiming');
+  callout('SMASH !',p0,'good');
+  return true;
+}
+function chooseAim(kind){
+  const A=state.aim; if(!A) return;
+  state.aim=null; aimEl.hidden=true; document.body.classList.remove('aiming');
+  for(const l of aimLines){ scene.remove(l); l.geometry.dispose(); l.material.dispose(); } aimLines.length=0; for(const k in aimLabels) delete aimLabels[k];
+  document.querySelectorAll('.aim-tag').forEach(e=>e.remove());
+  const o=kind && A.opts[kind];
+  if(!o){ doHit(A.pl,'smash',A.q); return; }
+  const t={...o, ok:o.kind!=='vitre'};
+  // exécution : un smash ciblé n'est pas garanti (une part retombe dans le terrain)
+  if(o.kind!=='vitre' && Math.random()<0.18+(1-A.q)*0.25){ t.kick=1+(o.kick-1)*0.45; t.ok=false; }
+  doHit(A.pl,'smash',A.q,t);
+}
+function updateAim(dt){
+  const A=state.aim; A.t-=dt;
+  aimEl.querySelector('.aim-timer i').style.width=Math.max(0,A.t/A.total*100)+'%';
+  for(const k in aimLabels){
+    if(!A.opts[k]) continue;
+    let tag=document.querySelector(`.aim-tag[data-k="${k}"]`);
+    if(!tag){ tag=document.createElement('div'); tag.className='aim-tag'; tag.dataset.k=k; tag.textContent=k==='por3'?'POR 3':k==='por4'?'POR 4':'VITRE'; tag.style.borderColor='#'+AIM_COL[k].toString(16).padStart(6,'0'); callEl.appendChild(tag); }
+    _v.copy(aimLabels[k]).project(camera);
+    tag.style.left=((_v.x*0.5+0.5)*stage.clientWidth)+'px'; tag.style.top=((-_v.y*0.5+0.5)*stage.clientHeight)+'px';
+  }
+  if(A.t<=0) chooseAim(null);
+}
+aimEl.querySelectorAll('.aim-opt').forEach(b=>b.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); chooseAim(b.dataset.trick); }));
 function aiShot(pl){
   const y=ball.p.y, near=Math.abs(ball.p.z)<5;
   const opps=players.filter(p=>p.team!==pl.team);
@@ -1340,6 +1481,11 @@ function homeFor(pl){
 const input={x:0,z:0}, keys={};
 const KEYMAP={KeyW:'u',ArrowUp:'u',KeyS:'d',ArrowDown:'d',KeyA:'l',ArrowLeft:'l',KeyD:'r',ArrowRight:'r'};
 window.addEventListener('keydown',e=>{
+  if(state.aim){
+    const m={ArrowLeft:'por3',KeyA:'por3',Digit1:'por3',ArrowUp:'por4',KeyW:'por4',Digit2:'por4',Space:'por4',ArrowRight:'vitre',KeyD:'vitre',Digit3:'vitre'}[e.code];
+    if(m){ e.preventDefault(); if(!e.repeat && state.aim.opts[m]) chooseAim(m); }
+    return;
+  }
   if(KEYMAP[e.code]){ keys[KEYMAP[e.code]]=true; e.preventDefault(); }
   if(e.repeat) return;
   if(e.code==='KeyJ') queueShot('lob');
@@ -1398,7 +1544,7 @@ function resetZoom(){ const vv=window.visualViewport; if(!vv || vv.scale<=1.01) 
 if(window.visualViewport) visualViewport.addEventListener('resize',()=>setTimeout(resetZoom,250));
 
 function queueShot(type,win){
-  if(state.demo || state.paused) return;
+  if(state.demo || state.paused || state.aim) return;
   const h=players[0];
   if(state.mode==='serve' && R.server===h){ readMove(); startServe(type); return; }
   if(state.mode!=='rally') return;
@@ -1457,6 +1603,7 @@ function updateScoreHUD(){
 /* ===================== update ===================== */
 function tossEvent(type){ if(type==='floor') state.tossBounced=true; }
 function update(dt){
+  if(state.aim){ updateAim(dt); updateVisuals(0); return; } // ralenti du smash ciblé : le jeu est figé
   // ball
   if(!ball.held){
     const n=Math.ceil(dt/(1/240)), h=dt/n;
@@ -1504,10 +1651,10 @@ function updatePlayers(dt){
         // à l'entraînement, l'aide attend que la balle ressorte de la vitre
         const assistOk = !state.training || R.glass;
         if(d<pl.reach && y>0.14 && y<2.9){
-          if(pl.queued){ doHit(pl,pl.queued.type==='auto'?autoType(pl):pl.queued.type,quality(pl)); pl.queued=null; }
-          else if(settings.assist && assistOk && d<0.9 && y>0.25 && y<2.65 && (ball.v.y<0.6 || y>0.9)) doHit(pl, y>2.05?'smash':'volley', quality(pl)*0.88);
+          if(pl.queued){ humanHit(pl,pl.queued.type==='auto'?autoType(pl):pl.queued.type,quality(pl)); pl.queued=null; }
+          else if(settings.assist && assistOk && d<0.9 && y>0.25 && y<2.65 && (ball.v.y<0.6 || y>0.9)) humanHit(pl, y>2.05?'smash':'volley', quality(pl)*0.88);
         }
-      } else if(d<pl.reach && y>0.24 && y<2.85 && (ball.v.y<1.5 || y>0.8)){ aiShot(pl); }
+      } else if(d<pl.reach && y>0.24 && y<2.85 && (ball.v.y<1.5 || y>0.8) && !(ball.trick && !R.glass)){ aiShot(pl); } // un POR 3 / POR 4 réussi est injouable ; raté (il touche une vitre), il redevient jouable
     }
     if(pl.queued){ pl.queued.t-=dt; if(pl.queued.t<=0){ swingAnim(pl,pl.queued.type); pl.queued=null; } }
 
@@ -1583,15 +1730,18 @@ function updateVisuals(dt){
   if(state.mode==='rally' && !state.demo && (frameN++%10===0)) updateScoreHUD();
 }
 let frameN=0;
-const sugEl=document.getElementById('suggest'), shotBtns={};
+const sugEl=document.getElementById('suggest'), shotBtns={}, aimHint=document.getElementById('aimHint');
+const aimMark=new THREE.Mesh(new THREE.RingGeometry(0.32,0.42,4),basic(0x9fe3d2,{transparent:true,opacity:0.5,depthWrite:false,side:THREE.DoubleSide}));
+aimMark.rotation.x=-Math.PI/2; aimMark.visible=false; scene.add(aimMark);
 document.querySelectorAll('.shot').forEach(b=>shotBtns[b.dataset.shot]=b);
 const SHOT_KEY={lob:'J',smash:'K',volley:'L'}, SHOT_BTN={lob:'LOB',smash:'SMASH',volley:'VOLÉE'};
 let sugLast='';
 function suggestion(h,ti){
   const opps=players.filter(p=>p.team===1);
-  if(ti.y>2.05) return {type:'smash',label:Math.abs(ti.z)>6.2?'BANDEJA':'SMASH'};
-  if(opps.every(o=>Math.abs(o.pos.z)<5) && Math.abs(ti.z)>5) return {type:'lob',label:'LOB'};
-  return {type:'volley',label:ti.b===0?'VOLÉE':(ti.g?'SORTIE DE VITRE':'DRIVE')};
+  if(ti.y>2.05) return Math.abs(ti.z)>6.2 ? {type:'smash',label:'BANDEJA',why:'balle haute, vous êtes au fond'} : {type:'smash',label:'SMASH',why:'balle haute près du filet'};
+  if(opps.filter(o=>o.parts.g.visible).every(o=>Math.abs(o.pos.z)<5) && Math.abs(ti.z)>5) return {type:'lob',label:'LOB',why:'adversaires au filet'};
+  if(ti.b===0) return {type:'volley',label:'VOLÉE',why:'avant le rebond'};
+  return {type:'volley',label:ti.g?'SORTIE DE VITRE':'DRIVE',why:ti.g?'après la vitre':'après le rebond'};
 }
 function updateSuggest(){
   const h=players[0], ti=h&&h.intercept;
@@ -1599,12 +1749,21 @@ function updateSuggest(){
   let key='';
   if(show){
     const sg=suggestion(h,ti); key=sg.type;
-    const html=document.body.classList.contains('touch') ? sg.label : `<span class="kc hot">Espace</span>${sg.label}`;
+    const html=(document.body.classList.contains('touch') ? '' : '<span class="kc hot">Espace</span>')+`<span class="sg-main">${sg.label}<small>${sg.why}</small></span>`;
     if(sugEl.innerHTML!==html) sugEl.innerHTML=html;
     _v.set(h.pos.x,2.25,h.pos.z).project(camera);
     sugEl.style.left=((_v.x*0.5+0.5)*stage.clientWidth)+'px'; sugEl.style.top=((-_v.y*0.5+0.5)*stage.clientHeight)+'px';
   }
   sugEl.hidden=!show;
+  // repère de visée sur le terrain adverse : suit ←/→ ou le joystick
+  aimMark.visible=!!show; aimHint.hidden=!show;
+  if(show){
+    const k=K(), ax=Math.abs(input.x)>0.2 ? clamp(input.x*3.7*k,-(CW-0.6),CW-0.6) : -(Math.sign(h.pos.x)||1)*2*k;
+    aimMark.position.set(ax,0.03,-7); aimMark.rotation.z+=0.03;
+    aimMark.material.opacity=Math.abs(input.x)>0.2?0.95:0.45;
+    _v.set(ax,0.9,-7).project(camera);
+    aimHint.style.left=((_v.x*0.5+0.5)*stage.clientWidth)+'px'; aimHint.style.top=((-_v.y*0.5+0.5)*stage.clientHeight)+'px';
+  }
   {
     let lbl='FRAPPER';
     if(state.mode==='serve' && R.server===h) lbl='SERVIR';
@@ -1677,7 +1836,7 @@ function applyRoles(){
   }
 }
 function startMatch(){
-  readSettings(); setLayout(); state.training=false; state.glassCues=0; state.demo=false; state.paused=false; resetScore(); state.power=0; state.powerArmed=false; renderPower();
+  readSettings(); setLayout(); state.training=false; state.glassCues=0; state.aimCount=0; state.lastAim=0; state.demo=false; state.paused=false; resetScore(); state.power=0; state.powerArmed=false; renderPower();
   applyRoles();
   menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false;
   callEl.innerHTML='';
