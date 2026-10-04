@@ -8,8 +8,8 @@ Ouvrez `index.html` dans un navigateur récent. Aucune installation ni étape de
 
 ## Modes
 
-- **Match en 2 contre 2** (terrain 20 × 10 m) : vous jouez au drive avec Léa (IA) au revés, contre deux joueurs IA.
-- **Match en 1 contre 1** (terrain 20 × 6 m, format simple de la FIP) : vous affrontez Nico.
+- **Match en 2 contre 2** (terrain 20 × 10 m) : vous jouez au drive avec un partenaire IA au revés, contre deux joueurs IA.
+- **Match en 1 contre 1** (terrain 20 × 6 m, format simple de la FIP) : vous affrontez un joueur IA.
 - Les deux formats se jouent en match rapide (1 set de 4 jeux) ou match complet (2 sets gagnants de 6 jeux), point en or ou avantages, 3 niveaux d'adversaires.
 - **Entraînement vitres** : des balles envoyées contre votre vitre de fond pour apprendre la sortie de vitre.
 
