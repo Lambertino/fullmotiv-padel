@@ -867,7 +867,7 @@ function buildCourt(W){
   fadeNearWall(courtG);
   host=scene;
 }
-const FLOOR_LOGOS=[]; let courtNet=null;
+const FLOOR_LOGOS=[]; let courtNet=null, ARENA_FAR=null; // ARENA_FAR : gradins du fond, masqués quand la caméra s'y trouve (vue retournée)
 function floorLogo(z,w){
   const s=SPONSORS.FULLMOTIV;
   const t=canvasTex(1600,240,(g,cw,ch)=>{ drawLogo(g,s,cw/2,ch/2,ch*1.05,'rgba(255,255,255,0.9)'); });
@@ -899,7 +899,8 @@ function buildArena(){
   // stands + crowd
   const standM=mat(0x0e2120);
   const people=[];
-  for(let i=0;i<10;i++){ const b=new THREE.Mesh(new THREE.BoxGeometry(30,0.55,1.05),standM); b.position.set(0,0.275+i*0.55,-13.6-i*1.05); scene.add(b);
+  const farMeshes=[screen];
+  for(let i=0;i<10;i++){ const b=new THREE.Mesh(new THREE.BoxGeometry(30,0.55,1.05),standM); farMeshes.push(b); b.position.set(0,0.275+i*0.55,-13.6-i*1.05); scene.add(b);
     for(let x=-14.4;x<=14.4;x+=0.62) if(Math.random()>0.14) people.push([x+rand(-0.08,0.08),0.55+i*0.55,-13.6-i*1.05,0]); }
   for(const xs of [1,-1]) for(let i=0;i<8;i++){ const b=new THREE.Mesh(new THREE.BoxGeometry(1.05,0.55,26),standM); b.position.set(xs*(8.6+i*1.05),0.275+i*0.55,-1); scene.add(b);
     for(let z=-13.4;z<=11.4;z+=0.62) if(Math.random()>0.16) people.push([xs*(8.6+i*1.05),0.55+i*0.55,z+rand(-0.08,0.08),xs]); }
@@ -931,7 +932,9 @@ function buildArena(){
   cam.add(place(new THREE.Mesh(new THREE.BoxGeometry(0.35,0.3,0.7),camM),[0,1.75,0]));
   cam.add(place(new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.11,0.3,16),camM),[0,1.75,0.45],[Math.PI/2,0,0]));
   for(const a of [0,2.1,4.2]) cam.add(place(new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,1.7,8),legM),[Math.sin(a)*0.3,0.8,Math.cos(a)*0.3],[Math.cos(a)*0.2,0,-Math.sin(a)*0.2]));
-  cam.position.set(3.5,0,-12.4); scene.add(cam);
+  cam.position.set(3.5,0,-12.4); scene.add(cam); farMeshes.push(cam);
+  ARENA_FAR={meshes:farMeshes, inst:[bodies,heads,seats,backs], idx:people.map((p,i)=>p[3]===0?i:-1).filter(i=>i>=0), saved:null};
+  applyView();
   // light towers
   for(const xs of [1,-1]) for(const zs of [1,-1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.2,9,0.2),metal); p.position.set(xs*7.6,4.5,zs*12.2); scene.add(p);
     const l=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.5,0.3),basic(new THREE.Color(0xeaf6ff).multiplyScalar(3))); l.position.set(xs*7.6,9.1,zs*12.2); l.lookAt(0,0,0); scene.add(l); } // projecteurs : halo à l'écran
@@ -956,6 +959,13 @@ function applyView(){
   for(const {o} of FADE) o.material = Math.sign(o.position.z)===VIEW ? o.userData.fadeMat : o.userData.baseMat;
   for(const l of FLOOR_LOGOS) l.rotation.z = VIEW<0 ? Math.PI : 0;
   if(courtNet) courtNet.rotation.y = VIEW<0 ? Math.PI : 0;
+  if(ARENA_FAR){
+    const A=ARENA_FAR, hide=VIEW<0;
+    for(const m of A.meshes) m.visible=!hide;
+    if(hide && !A.saved){ A.saved=A.inst.map(im=>A.idx.map(i=>{ const mm=new THREE.Matrix4(); im.getMatrixAt(i,mm); return mm; }));
+      const zero=new THREE.Matrix4().makeScale(0,0,0); for(const im of A.inst){ for(const i of A.idx) im.setMatrixAt(i,zero); im.instanceMatrix.needsUpdate=true; } }
+    else if(!hide && A.saved){ A.inst.forEach((im,k)=>{ A.idx.forEach((i,j)=>im.setMatrixAt(i,A.saved[k][j])); im.instanceMatrix.needsUpdate=true; }); A.saved=null; }
+  }
 }
 
 /* ===================== players ===================== */
@@ -2251,6 +2261,7 @@ function guestStart(m){
   state.training=false; state.demo=false; state.paused=false; state.mode='serve'; state.aim=null;
   NET.live=true; NET.snap=null; NET.lastS='';
   hideLobby(); menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false; callEl.innerHTML='';
+  document.getElementById('hint').hidden=true; document.body.classList.remove('serving');
   resetScore(); updateScoreHUD(); setCardNames();
   banner(SINGLE?'Vous – Adversaire':'Roses – Blancs','Partie entre amis',1600);
 }
