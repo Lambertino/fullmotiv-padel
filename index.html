@@ -291,7 +291,7 @@ body.touch #tip{top:calc(150px + env(safe-area-inset-top,0px))}
 .cta.alt{background:transparent;color:var(--accent);border:2px solid var(--accent);box-shadow:none}
 .cta.alt:hover{background:rgba(255,177,200,.1)}
 .join-name{max-width:340px}
-.lobby{position:absolute;top:calc(66px + env(safe-area-inset-top,0px));right:16px;width:min(340px,calc(100% - 32px));box-sizing:border-box;background:var(--panel-solid);border:1px solid var(--edge);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);z-index:6;overflow:hidden;font-family:var(--body)}
+.lobby{position:absolute;top:calc(66px + env(safe-area-inset-top,0px));right:16px;width:min(340px,calc(100% - 32px));box-sizing:border-box;background:var(--panel-solid);border:1px solid var(--edge);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);z-index:6;overflow-x:hidden;overflow-y:auto;max-height:calc(100% - 66px - 250px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));font-family:var(--body)} /* ne recouvre pas le pad de frappe */
 .lb-toggle{width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;background:none;border:0;text-align:left;color:var(--fg)}
 .lb-toggle b{flex:1;font:800 17px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}
 .lb-dot{width:9px;height:9px;border-radius:50%;background:var(--neon);box-shadow:0 0 8px var(--neon);animation:pulse 1.4s infinite}
@@ -324,7 +324,7 @@ body.touch #tip{top:calc(150px + env(safe-area-inset-top,0px))}
 .lb-actions .cta{font-size:17px;padding:11px 16px}
 .lb-actions .cta:disabled{opacity:.45;cursor:not-allowed}
 body.lobby #hint{display:none}
-body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:16px;width:auto}
+body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:16px;width:auto;max-height:calc(100% - 84px - 250px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
 @media (max-width:600px){.lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:16px;width:auto}}
 @media (prefers-reduced-motion:reduce){.callout,#banner.show,#hitBtn{animation-duration:.01s}}
 </style>
