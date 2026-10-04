@@ -767,11 +767,9 @@ function buildArena(){
   people.forEach((p,i)=>{ o.position.set(p[0],p[1]+0.28,p[2]); o.rotation.set(0,p[3]?-p[3]*Math.PI/2:0,0); o.updateMatrix(); bodies.setMatrixAt(i,o.matrix); c.setHex(pal[(Math.random()*pal.length)|0]).multiplyScalar(0.75); bodies.setColorAt(i,c);
     o.position.y=p[1]+0.68; o.updateMatrix(); heads.setMatrixAt(i,o.matrix); c.setHex(skins[(Math.random()*skins.length)|0]).multiplyScalar(0.7); heads.setColorAt(i,c); });
   scene.add(bodies, heads);
-  // light towers + arcs
+  // light towers
   for(const xs of [1,-1]) for(const zs of [1,-1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.2,9,0.2),metal); p.position.set(xs*7.6,4.5,zs*12.2); scene.add(p);
     const l=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.5,0.3),basic(0xeaf6ff)); l.position.set(xs*7.6,9.1,zs*12.2); l.lookAt(0,0,0); scene.add(l); }
-  const arc=new THREE.Mesh(new THREE.TorusGeometry(12.8,0.06,4,72,Math.PI),basic(0xff9fbe)); arc.position.set(0,0,-12.9); scene.add(arc);
-  const arc2=new THREE.Mesh(new THREE.TorusGeometry(16,0.05,4,72,Math.PI),basic(0x7a3550)); arc2.position.set(0,0,-16.5); scene.add(arc2);
 }
 
 // Avec la caméra basse, le haut du mur proche (grillage, barres, poteaux) passe devant le joueur :
