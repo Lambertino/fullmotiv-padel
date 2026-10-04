@@ -2356,6 +2356,8 @@ async function boot(){
   loadSettings(); readSettings(); setLayout();
   document.querySelectorAll('input[name=players]').forEach(r=>r.addEventListener('change',()=>{ readSettings(); setLayout(); if(state.demo) setupPoint(false); })); // aperçu du terrain dans le menu
   if(/[?&]og\b/.test(location.search)){ document.body.classList.add('og'); fitCamera(); }
+  // diagnostic (tests) : ?debug expose l'état du jeu dans la console
+  if(/[?&]debug\b/.test(location.search)) window.__fm={NET,state,S,R,ball,ALL,players,update,guestUpdate,snapshot,get ME(){return ME;},get VIEW(){return VIEW;}};
   const invite=new URLSearchParams(location.search).get('partie');
   if(invite && /^[A-Z0-9]{5}$/i.test(invite)) showJoin(invite.toUpperCase());
   fitCamera(); applyRoles();
