@@ -532,8 +532,10 @@ const SPONSORS = {
   KORALIS:  {name:'KORALIS',  tag:'EAU MINÉRALE',   mark:'wave', bg:'#00a6c8', fg:'#ffffff'},
   MERIDIA:  {name:'MERIDIA',  tag:'ÉNERGIE',        mark:'bolt', bg:'#ff6a2b', fg:'#ffffff'}
 };
+// Texte du filet (grandes lettres claires, façon circuit pro). Remplacer par le nom d'un circuit uniquement avec son accord.
+const NET_TEXT = 'PADEL TOUR';
 const SLOTS = {
-  backBand:'FULLMOTIV', backPlate:'NOVATOUR', nearBand:'FULLMOTIV', net:'FULLMOTIV',
+  backPlate:'NOVATOUR', 
   sideGlass:['KORALIS','MERIDIA'], sideBoards:['AERIA','FULLMOTIV','VOLTA'],
   corners:['NOVATOUR','MERIDIA'], farBoard:'FULLMOTIV', screen:'FULLMOTIV'
 };
@@ -680,18 +682,21 @@ function buildCourt(W){
   // frame posts & rails
   const metal=mat(0x1d2b2a);
   const post=(x,z,h)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(0.08,h,0.08),metal); m.position.set(x,h/2,z); add(m); };
-  for(let x=-W;x<=W+1e-6;x+=2){ post(x,10,4); post(x,-10,4); }
+  // vitres de fond panoramiques : aucun montant entre les panneaux, seulement les angles
+  for(const xs of [1,-1]) for(const zs of [1,-1]) post(xs*W,zs*10,4);
+  // haut des vitres : profilé noir, bien visible (y compris sur la vitre proche)
+  const edge=mat(0x0b0f0f), edgeBar=(a,b)=>{ const m=bar(a,b,0.1,edge); m.userData.edge=true; return m; };
   for(const xs of [1,-1]) for(let z=-8;z<=8;z+=2){ const a=Math.abs(z); post(xs*W,z,a>=8?4:3); }
   for(const zs of [1,-1]){
-    bar(new V3(-W,3,zs*10),new V3(W,3,zs*10),0.05,neon);
+    edgeBar(new V3(-W,3,zs*10),new V3(W,3,zs*10));
     bar(new V3(-W,4,zs*10),new V3(W,4,zs*10),0.07,metal);
     for(const xs of [1,-1]){
-      bar(new V3(xs*W,3,zs*10),new V3(xs*W,3,zs*8),0.05,neon);
-      bar(new V3(xs*W,2,zs*8),new V3(xs*W,2,zs*6),0.05,neon);
+      edgeBar(new V3(xs*W,3,zs*10),new V3(xs*W,3,zs*8));
+      edgeBar(new V3(xs*W,2,zs*8),new V3(xs*W,2,zs*6));
       bar(new V3(xs*W,4,zs*10),new V3(xs*W,4,zs*8),0.07,metal);
       // cadre de l'ouverture : montant côté fond + linteau néon
       post(xs*W,zs*DOOR1,3);
-      bar(new V3(xs*W,DOOR_H,zs*DOOR0),new V3(xs*W,DOOR_H,zs*DOOR1),0.05,neon);
+      edgeBar(new V3(xs*W,DOOR_H,zs*DOOR0),new V3(xs*W,DOOR_H,zs*DOOR1));
     }
   }
   for(const xs of [1,-1]) bar(new V3(xs*W,3,-8),new V3(xs*W,3,8),0.07,metal);
@@ -702,18 +707,17 @@ function buildCourt(W){
     for(let x=0;x<=w;x+=9){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,h); g.stroke(); }
     for(let y=0;y<=h;y+=9){ g.beginPath(); g.moveTo(0,y); g.lineTo(w,y); g.stroke(); }
     g.fillStyle='rgba(8,30,28,0.55)'; g.fillRect(0,h*0.2,w,h*0.6);
-    const s=SPONSORS[SLOTS.net]; drawLogo(g,s,w*0.22,h*0.5,h*0.45,'rgba(255,255,255,0.75)'); drawLogo(g,s,w*0.78,h*0.5,h*0.45,'rgba(255,255,255,0.75)');
-    g.fillStyle='rgba(255,255,255,0.55)'; g.font='800 46px "Saira Condensed",sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('ARENA MASTERS',w/2,h*0.52);
+    g.fillStyle='rgba(255,255,255,0.62)'; g.font='800 64px "Saira Condensed",sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+    if('letterSpacing' in g) g.letterSpacing='14px';
+    g.fillText(NET_TEXT,w/2,h*0.54);
   });
   const net=new THREE.Mesh(new THREE.PlaneGeometry(2*W,0.86),basic(0xffffff,{map:netTex,transparent:true,side:THREE.DoubleSide,depthWrite:false}));
   net.position.set(0,0.45,0); add(net);
   bar(new V3(-W,0.9,0),new V3(W,0.9,0),0.05,basic(0xf4f8ff));
   for(const xs of [1,-1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.95,0.1),metal); p.position.set(xs*(W+0.02),0.475,0); add(p); }
 
-  // sponsors on glass
-  decal(bandTex(SLOTS.backBand,2048,170,2,0.92),2*W,0.82,0,1.45,-9.97,0);
+  // sponsors sur les vitres latérales et plaque du fond (vitres de fond dégagées, comme en panoramique)
   decal(bandTex(SLOTS.backPlate,1024,170,1,0.95),3.4,0.56,0,0.55,-9.96,0);
-  decal(bandTex(SLOTS.nearBand,2048,128,3,0.95),2*W,0.5,0,0.3,10.06,0);
   SLOTS.sideGlass.forEach((k,i)=>{
     const t=bandTex(k,1024,256,1,0.8);
     decal(t,1.8,0.45,-(W-0.03),1.25,(i?1:-1)*9,Math.PI/2);
@@ -724,11 +728,19 @@ function buildCourt(W){
     const t=bandTex(SLOTS.sideBoards[i],1024,140,1,1);
     for(const xs of [1,-1]){ const b=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.8,3.9),mat(0x0a1c1b)); b.position.set(xs*(W+1.3),0.4,z); add(b); decal(t,3.9,0.8,xs*(W+1.2),0.4,z,xs>0?-Math.PI/2:Math.PI/2); }
   });
+  fadeNearWall(courtG);
   host=scene;
+}
+function floorLogo(z,w){
+  const s=SPONSORS.FULLMOTIV;
+  const t=canvasTex(1600,240,(g,cw,ch)=>{ drawLogo(g,s,cw/2,ch/2,ch*1.05,'rgba(255,255,255,0.9)'); });
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,w*240/1600),basic(0xffffff,{map:t,transparent:true,depthWrite:false}));
+  m.rotation.x=-Math.PI/2; m.position.set(0,0.012,z); scene.add(m); return m;
 }
 function buildArena(){
   // outer floor
-  const ag=new THREE.PlaneGeometry(70,80,28,32).toNonIndexed(); facet(ag,0xc9502b,0.08); // sol hors terrain en orange, comme sur les courts de compétition
+  floorLogo(11.15,7.5); floorLogo(-10.95,7.5); // « FULLMOTIV » peint au sol hors de la cage
+  const ag=new THREE.PlaneGeometry(70,80,28,32).toNonIndexed(); facet(ag,0xb22a25,0.07); // sol hors terrain en rouge, comme sur les courts de compétition
   const arena=new THREE.Mesh(ag, mat(0xffffff,{vertexColors:true})); arena.rotation.x=-Math.PI/2; arena.position.y=-0.02; scene.add(arena);
   buildCourt(CW);
   const metal=mat(0x1d2b2a);
@@ -767,11 +779,11 @@ function buildArena(){
 
 // Avec la caméra basse, le haut du mur proche (grillage, barres, poteaux) passe devant le joueur :
 // on l'atténue fortement, comme dans les jeux de sport, sans toucher aux bandeaux sponsors du bas.
-function fadeNearWall(){
-  scene.traverse(o=>{
+function fadeNearWall(root){
+  (root||scene).traverse(o=>{
     if(!o.isMesh || o.position.z<9.5 || o.position.z>10.6 || o.position.y<0.6 || Math.abs(o.position.x)>5.6) return;
     const m=o.material.clone(); m.transparent=true; m.depthWrite=false;
-    m.opacity=Math.min(m.opacity==null?1:m.opacity, m.map?0.12:0.22);
+    m.opacity=o.userData.edge ? 0.75 : Math.min(m.opacity==null?1:m.opacity, m.map?0.12:0.22);
     o.material=m;
   });
 }
