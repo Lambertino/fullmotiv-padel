@@ -42,6 +42,7 @@ body{background:var(--night);color:var(--fg);font-family:var(--body);-webkit-tap
 #app{position:fixed;inset:0;overflow:hidden}
 #stage{position:absolute;inset:0;touch-action:none}
 #stage canvas{display:block;width:100%;height:100%}
+#stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(0,0,0,.38) 100%)}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible+span,summary:focus-visible{outline:2px solid var(--neon);outline-offset:2px}
 
@@ -569,6 +570,10 @@ const DIFF = {
 const stage = document.getElementById('stage');
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+// rendu « moderne » : matériaux physiques, reflets d'environnement et vraies ombres portées
+// (pas de tone mapping : il désaturait les couleurs de la marque)
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const LOW_GPU = window.matchMedia && matchMedia('(pointer: coarse)').matches;
 stage.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 let host = scene; // parent des décors : la scène, ou le groupe du terrain pendant sa construction
@@ -576,11 +581,26 @@ scene.background = new THREE.Color(0x061514);
 scene.fog = new THREE.Fog(0x061514, 36, 85);
 const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 200);
 
-scene.add(new THREE.HemisphereLight(0xd6ece6, 0x0a1a18, 0.8));
-const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(5, 18, 9); scene.add(sun);
-const rim = new THREE.DirectionalLight(0xff9fbe, 0.3); rim.position.set(-8, 6, -14); scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xdfeee9, 0x2a1210, 0.22));
+// projecteur principal : porte les ombres des joueurs et de la balle sur le terrain
+const sun = new THREE.DirectionalLight(0xfff6ec, 0.85); sun.position.set(6, 20, 10); scene.add(sun);
+sun.castShadow=true; sun.shadow.mapSize.set(LOW_GPU?1024:2048,LOW_GPU?1024:2048);
+Object.assign(sun.shadow.camera,{left:-9,right:9,top:13,bottom:-13,near:2,far:50}); sun.shadow.camera.updateProjectionMatrix();
+sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.02; sun.shadow.radius=3;
+const fill = new THREE.DirectionalLight(0xdfeeff, 0.18); fill.position.set(-10, 9, 14); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xff9fbe, 0.35); rim.position.set(-8, 6, -14); scene.add(rim);
+// éclairage d'ambiance par environnement : reflets doux sur les vitres, la balle et les maillots
+{
+  const pm=new THREE.PMREMGenerator(renderer), env=new THREE.Scene(); env.background=new THREE.Color(0x050a0a);
+  const glow=(w,h,d,x,y,z,c,i)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({color:new THREE.Color(c).multiplyScalar(i)})); m.position.set(x,y,z); env.add(m); };
+  glow(10,0.4,10,0,14,0,0xffffff,0.6);         // rampe de projecteurs au plafond
+  glow(0.4,5,16,-14,7,0,0xffffff,0.2); glow(0.4,5,16,14,7,0,0xffffff,0.2);
+  glow(16,5,0.4,0,6,-16,0xff9fbe,0.12); glow(16,5,0.4,0,6,16,0xdfeeff,0.12);
+  glow(60,0.2,60,0,-2,0,0xb22a25,0.06);        // rebond du sol rouge
+  scene.environment=pm.fromScene(env,0.04).texture; pm.dispose();
+}
 
-const mat = (c, o) => new THREE.MeshPhongMaterial(Object.assign({color:c, flatShading:true, shininess:6}, o||{}));
+const mat = (c, o) => new THREE.MeshStandardMaterial(Object.assign({color:c, roughness:0.6, metalness:0.02}, o||{}));
 const basic = (c, o) => new THREE.MeshBasicMaterial(Object.assign({color:c}, o||{}));
 
 function facet(geo, hex, variance, pattern){
@@ -650,8 +670,8 @@ function buildCourt(W){
   const add=m=>{ courtG.add(m); return m; };
   // court floor — big diamond tiles like a broadcast court
   const cg=new THREE.PlaneGeometry(2*W,20,2*W,20).toNonIndexed();
-  facet(cg,0x17604f,0.035,(x,y)=>{ const u=Math.floor((x+y+30)/2.5), v=Math.floor((x-y+30)/2.5); return ((u+v)%2)?0.055:-0.035; });
-  const court=new THREE.Mesh(cg, mat(0xffffff,{vertexColors:true})); court.rotation.x=-Math.PI/2; add(court);
+  facet(cg,0x125446,0.006,(x,y)=>{ const u=Math.floor((x+y+30)/2.5), v=Math.floor((x-y+30)/2.5); return ((u+v)%2)?0.03:-0.02; });
+  const court=new THREE.Mesh(cg, mat(0xffffff,{vertexColors:true,roughness:0.85})); court.receiveShadow=true; court.rotation.x=-Math.PI/2; add(court);
   // lines (padel: only service lines + central line, walls are the boundary)
   const lm=basic(0xf4f8ff);
   const line=(x,z,w,d)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),lm); m.rotation.x=-Math.PI/2; m.position.set(x,0.006,z); add(m); };
@@ -661,7 +681,7 @@ function buildCourt(W){
   [[-E,-10.08,E,-10.08],[-E,10.08,E,10.08],[-E,-10.08,-E,10.08],[E,-10.08,E,10.08]].forEach(s=>bar(new V3(s[0],0.03,s[1]),new V3(s[2],0.03,s[3]),0.06,neon));
 
   // glass + mesh
-  const glass=new THREE.MeshPhongMaterial({color:0xc9f0e6, transparent:true, opacity:0.09, shininess:90, side:THREE.DoubleSide, depthWrite:false});
+  const glass=new THREE.MeshStandardMaterial({color:0xe6fff8, metalness:0.1, roughness:0.04, envMapIntensity:2.4, transparent:true, opacity:0.13, side:THREE.DoubleSide, depthWrite:false});
   const meshBase=canvasTex(64,64,(g)=>{ g.strokeStyle='rgba(200,225,218,0.7)'; g.lineWidth=2.2; g.beginPath(); g.moveTo(0,0); g.lineTo(64,64); g.moveTo(64,0); g.lineTo(0,64); g.stroke(); });
   meshBase.wrapS=meshBase.wrapT=THREE.RepeatWrapping;
   const glassPanel=(w,h,x,y,z,ry)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),glass); m.position.set(x,y,z); m.rotation.y=ry; add(m); };
@@ -737,8 +757,8 @@ function floorLogo(z,w){
 function buildArena(){
   // outer floor
   floorLogo(11.15,7.5); floorLogo(-10.95,7.5); // « FULLMOTIV » peint au sol hors de la cage
-  const ag=new THREE.PlaneGeometry(70,80,28,32).toNonIndexed(); facet(ag,0xb22a25,0.07); // sol hors terrain en rouge, comme sur les courts de compétition
-  const arena=new THREE.Mesh(ag, mat(0xffffff,{vertexColors:true})); arena.rotation.x=-Math.PI/2; arena.position.y=-0.02; scene.add(arena);
+  const ag=new THREE.PlaneGeometry(70,80,28,32).toNonIndexed(); facet(ag,0xb22a25,0.015); // sol hors terrain en rouge, comme sur les courts de compétition
+  const arena=new THREE.Mesh(ag, mat(0xffffff,{vertexColors:true,roughness:0.9})); arena.receiveShadow=true; arena.rotation.x=-Math.PI/2; arena.position.y=-0.02; scene.add(arena);
   buildCourt(CW);
   const metal=mat(0x1d2b2a);
   // corner A-frames
@@ -803,7 +823,7 @@ function numberTex(num, color){
     g.lineWidth=8; g.strokeStyle=color; g.strokeText(num,w/2,h/2+6); g.fillStyle='#ffffff'; g.fillText(num,w/2,h/2+6);
   });
 }
-// Low poly, mais articulé : hanches/genoux, épaules/coudes, mains, chaussures, visage, coiffure, raquette perforée.
+// Stylisé et lissé, articulé : hanches/genoux, épaules/coudes, mains, chaussures, visage, coiffure, raquette perforée.
 function buildPlayerMesh(o){
   const g=new THREE.Group();
   const M={skin:mat(o.skin), shirt:mat(o.shirt), shorts:mat(o.shorts), accent:mat(o.accent), white:mat(0xf2f4f8), sole:mat(0x2a2f3a), hair:mat(o.hair), dark:mat(0x151a26)};
@@ -813,66 +833,67 @@ function buildPlayerMesh(o){
   const legs=[];
   for(const sx of [-1,1]){
     const hip=new THREE.Group(); hip.position.set(sx*0.1,0.93,0); g.add(hip);
-    hip.add(hang(0.085,0.066,0.44,6,M.skin));
-    if(o.bottom!=='skirt') hip.add(hang(0.098,0.092,0.2,6,M.shorts));
+    hip.add(hang(0.085,0.066,0.44,16,M.skin));
+    if(o.bottom!=='skirt') hip.add(hang(0.098,0.092,0.2,16,M.shorts));
     const knee=new THREE.Group(); knee.position.y=-0.44; hip.add(knee);
-    knee.add(hang(0.064,0.048,0.42,6,M.skin));
-    const sock=hang(0.054,0.052,0.1,6,M.white); sock.position.y=-0.3; knee.add(sock);
+    knee.add(hang(0.064,0.048,0.42,16,M.skin));
+    const sock=hang(0.054,0.052,0.1,16,M.white); sock.position.y=-0.3; knee.add(sock);
     const foot=new THREE.Group(); foot.position.y=-0.42; knee.add(foot);
     foot.add(box(0.115,0.035,0.28,M.sole,0,-0.045,0.05));
     foot.add(box(0.105,0.065,0.24,M.white,0,-0.005,0.04));
     foot.add(box(0.11,0.02,0.13,M.accent,0,0,0.06));
     legs.push({hip,knee});
   }
-  if(o.bottom==='skirt'){ const sk=new THREE.Mesh(new THREE.CylinderGeometry(0.19,0.28,0.27,8),M.shorts); sk.position.y=0.9; g.add(sk); }
-  else { const pv=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.215,0.22,7),M.shorts); pv.position.y=0.97; pv.scale.z=0.8; g.add(pv); }
+  if(o.bottom==='skirt'){ const sk=new THREE.Mesh(new THREE.CylinderGeometry(0.19,0.28,0.27,20),M.shorts); sk.position.y=0.9; g.add(sk); }
+  else { const pv=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.215,0.22,20),M.shorts); pv.position.y=0.97; pv.scale.z=0.8; g.add(pv); }
   // upper body
   const chest=new THREE.Group(); chest.position.y=1.0; g.add(chest);
-  const tg=new THREE.CylinderGeometry(0.205,0.165,0.54,7); tg.translate(0,0.27,0);
+  const tg=new THREE.CylinderGeometry(0.205,0.165,0.54,20); tg.translate(0,0.27,0);
   const torso=new THREE.Mesh(tg,M.shirt); torso.scale.z=0.72; chest.add(torso);
   for(const sx of [-1,1]) chest.add(box(0.022,0.46,0.07,M.accent,sx*0.188,0.27,0));
-  const collar=new THREE.Mesh(new THREE.TorusGeometry(0.075,0.022,4,8),M.accent); collar.rotation.x=Math.PI/2; collar.position.y=0.545; chest.add(collar);
+  const collar=new THREE.Mesh(new THREE.TorusGeometry(0.075,0.022,8,20),M.accent); collar.rotation.x=Math.PI/2; collar.position.y=0.545; chest.add(collar);
   const num=new THREE.Mesh(new THREE.PlaneGeometry(0.2,0.2),basic(0xffffff,{map:numberTex(o.number,'#'+new THREE.Color(o.shorts).getHexString()),transparent:true}));
   num.position.set(0,0.3,-0.128); num.rotation.y=Math.PI; chest.add(num);
-  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.048,0.055,0.1,6),M.skin); neck.position.y=0.6; chest.add(neck);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(0.048,0.055,0.1,14),M.skin); neck.position.y=0.6; chest.add(neck);
   // head
   const head=new THREE.Group(); head.position.y=0.74; chest.add(head);
-  const skull=new THREE.Mesh(new THREE.IcosahedronGeometry(0.12,1),M.skin); skull.scale.set(0.92,1.06,0.98); head.add(skull);
+  const skull=new THREE.Mesh(new THREE.IcosahedronGeometry(0.12,3),M.skin); skull.scale.set(0.92,1.06,0.98); head.add(skull);
   head.add(box(0.03,0.045,0.04,M.skin,0,-0.012,0.115));
   for(const sx of [-1,1]){ head.add(box(0.026,0.016,0.012,M.dark,sx*0.042,0.022,0.112)); head.add(box(0.024,0.05,0.035,M.skin,sx*0.111,0,0)); }
   if(o.style==='cap'){
-    const dome=new THREE.Mesh(new THREE.IcosahedronGeometry(0.128,1),M.accent); dome.scale.set(1,0.62,1.03); dome.position.set(0,0.065,-0.01); head.add(dome);
+    const dome=new THREE.Mesh(new THREE.IcosahedronGeometry(0.128,3),M.accent); dome.scale.set(1,0.62,1.03); dome.position.set(0,0.065,-0.01); head.add(dome);
     head.add(box(0.19,0.016,0.12,M.accent,0,0.06,0.12));
-    const back=new THREE.Mesh(new THREE.IcosahedronGeometry(0.11,0),M.hair); back.scale.set(1,0.5,0.6); back.position.set(0,-0.03,-0.07); head.add(back);
+    const back=new THREE.Mesh(new THREE.IcosahedronGeometry(0.11,2),M.hair); back.scale.set(1,0.5,0.6); back.position.set(0,-0.03,-0.07); head.add(back);
   } else {
-    const cap=new THREE.Mesh(new THREE.IcosahedronGeometry(0.128,1),M.hair); cap.scale.set(1,0.66,1.03); cap.position.set(0,0.06,-0.014); head.add(cap);
+    const cap=new THREE.Mesh(new THREE.IcosahedronGeometry(0.128,3),M.hair); cap.scale.set(1,0.66,1.03); cap.position.set(0,0.06,-0.014); head.add(cap);
     if(o.style.indexOf('ponytail')===0){
-      const pt=new THREE.Mesh(new THREE.ConeGeometry(0.045,0.22,5),M.hair); pt.position.set(0,-0.03,-0.17); pt.rotation.x=-2.5; head.add(pt);
+      const pt=new THREE.Mesh(new THREE.ConeGeometry(0.045,0.22,14),M.hair); pt.position.set(0,-0.03,-0.17); pt.rotation.x=-2.5; head.add(pt);
       head.add(box(0.05,0.03,0.03,M.accent,0,0.04,-0.13));
     }
-    if(o.style.indexOf('band')>0){ const band=new THREE.Mesh(new THREE.TorusGeometry(0.121,0.014,4,12),M.accent); band.rotation.x=Math.PI/2; band.position.y=0.045; head.add(band); }
+    if(o.style.indexOf('band')>0){ const band=new THREE.Mesh(new THREE.TorusGeometry(0.121,0.014,8,28),M.accent); band.rotation.x=Math.PI/2; band.position.y=0.045; head.add(band); }
   }
   // arms
   const mkArm=(sx,racket)=>{
     const sh=new THREE.Group(); sh.position.set(sx*0.235,0.47,0); chest.add(sh);
-    sh.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.075,0),M.shirt));
-    sh.add(hang(0.07,0.064,0.15,6,M.shirt));
-    sh.add(hang(0.052,0.045,0.27,6,M.skin));
+    sh.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.075,2),M.shirt));
+    sh.add(hang(0.07,0.064,0.15,16,M.shirt));
+    sh.add(hang(0.052,0.045,0.27,16,M.skin));
     const el=new THREE.Group(); el.position.y=-0.27; sh.add(el);
-    el.add(hang(0.045,0.036,0.25,6,M.skin));
+    el.add(hang(0.045,0.036,0.25,16,M.skin));
     const hand=new THREE.Group(); hand.position.y=-0.25; el.add(hand);
     hand.add(box(0.055,0.08,0.04,M.skin,0,-0.035,0));
     if(racket){
-      const wb=hang(0.043,0.043,0.05,6,M.accent); wb.position.y=-0.17; el.add(wb);
-      const grip=hang(0.017,0.017,0.13,6,M.dark); grip.position.y=0.03; hand.add(grip);
+      const wb=hang(0.043,0.043,0.05,16,M.accent); wb.position.y=-0.17; el.add(wb);
+      const grip=hang(0.017,0.017,0.13,16,M.dark); grip.position.y=0.03; hand.add(grip);
       hand.add(box(0.03,0.07,0.024,mat(o.racket),0,-0.13,0));
       const rh=new THREE.Mesh(racketGeo(),[mat(o.racket),M.dark]); rh.position.y=-0.3; hand.add(rh);
     }
     return {sh,el};
   };
   const armR=mkArm(1,true), armL=mkArm(-1,false);
-  const shadow=new THREE.Mesh(new THREE.CircleGeometry(0.42,10),basic(0x000000,{transparent:true,opacity:0.32,depthWrite:false}));
+  const shadow=new THREE.Mesh(new THREE.CircleGeometry(0.42,24),basic(0x000000,{transparent:true,opacity:0.14,depthWrite:false}));
   shadow.rotation.x=-Math.PI/2; shadow.position.y=0.012;
+  g.traverse(m=>{ if(m.isMesh && !m.material.transparent) m.castShadow=true; });
   return {g, legs, chest, head, armR, armL, shadow};
 }
 const ALL=[], players=[]; // ALL : les 4 joueurs ; players : ceux en jeu (2 en simple, 4 en double)
@@ -888,9 +909,9 @@ function makePlayer(team, idx, name, colors, human){
 
 /* ===================== ball & fx ===================== */
 const ball={p:new V3(0,1,0), v:new V3(), outside:false, netTouched:false, rolling:false, held:true};
-const ballMesh=new THREE.Mesh(new THREE.IcosahedronGeometry(0.095,1),mat(0xd9ff3c,{emissive:0x3a4a00}));
+const ballMesh=new THREE.Mesh(new THREE.SphereGeometry(0.095,24,16),mat(0xd9ff3c,{emissive:0x3a4a00,emissiveIntensity:0.7,roughness:0.75})); ballMesh.castShadow=true;
 scene.add(ballMesh);
-const ballShadow=new THREE.Mesh(new THREE.CircleGeometry(0.13,10),basic(0x000000,{transparent:true,opacity:0.6,depthWrite:false}));
+const ballShadow=new THREE.Mesh(new THREE.CircleGeometry(0.13,20),basic(0x000000,{transparent:true,opacity:0.32,depthWrite:false}));
 // repère vertical balle → sol, pour lire la hauteur de la balle
 const dropGeo=new THREE.BufferGeometry(); dropGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
 const dropLine=new THREE.Line(dropGeo,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.35})); dropLine.frustumCulled=false; scene.add(dropLine);
