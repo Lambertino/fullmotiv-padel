@@ -891,7 +891,7 @@ function buildArena(){
   });
   // far LED board + screen
   const fb=new THREE.Mesh(new THREE.BoxGeometry(12,0.8,0.18),mat(0x0a1c1b)); fb.position.set(0,0.4,-11.6); scene.add(fb);
-  decal(bandTex(SLOTS.farBoard,2048,140,3,1),12,0.8,0,0.4,-11.5,0);
+  const fbd=decal(bandTex(SLOTS.farBoard,2048,140,3,1),12,0.8,0,0.4,-11.5,0);
   const scr=canvasTex(1024,320,(g,w,h)=>{ const s=SPONSORS[SLOTS.screen]; g.fillStyle='#071a19'; g.fillRect(0,0,w,h); g.strokeStyle='#ffb1c8'; g.lineWidth=6; g.strokeRect(8,8,w-16,h-16); drawLogo(g,s,w/2,h*0.42,h*0.38,s.fg); g.fillStyle='#a9c4bd'; g.font='600 34px "Saira",sans-serif'; g.textAlign='center'; g.fillText(s.logo?'PADEL · ARENA MASTERS':'ARENA MASTERS · FINALE',w/2,h*0.8); });
   const screen=new THREE.Mesh(new THREE.BoxGeometry(11,3.4,0.3),[mat(0x0a1c1b),mat(0x0a1c1b),mat(0x0a1c1b),mat(0x0a1c1b),basic(0xffffff,{map:scr}),mat(0x0a1c1b)]);
   screen.position.set(0,10.5,-24); scene.add(screen);
@@ -899,7 +899,7 @@ function buildArena(){
   // stands + crowd
   const standM=mat(0x0e2120);
   const people=[];
-  const farMeshes=[screen];
+  const farMeshes=[screen,fb,fbd];
   for(let i=0;i<10;i++){ const b=new THREE.Mesh(new THREE.BoxGeometry(30,0.55,1.05),standM); farMeshes.push(b); b.position.set(0,0.275+i*0.55,-13.6-i*1.05); scene.add(b);
     for(let x=-14.4;x<=14.4;x+=0.62) if(Math.random()>0.14) people.push([x+rand(-0.08,0.08),0.55+i*0.55,-13.6-i*1.05,0]); }
   for(const xs of [1,-1]) for(let i=0;i<8;i++){ const b=new THREE.Mesh(new THREE.BoxGeometry(1.05,0.55,26),standM); b.position.set(xs*(8.6+i*1.05),0.275+i*0.55,-1); scene.add(b);
