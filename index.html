@@ -403,10 +403,10 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
         <label><input type="radio" name="golden" id="g-gold" value="1" checked><span>Point en or<small>Le point suivant gagne le jeu</small></span></label>
         <label><input type="radio" name="golden" id="g-adv" value="0"><span>Avantages<small>Deux points d'écart</small></span></label>
       </fieldset>
-      <fieldset class="seg"><legend>Adversaires</legend>
-        <label><input type="radio" name="diff" id="d-easy" value="easy"><span>Loisir</span></label>
-        <label><input type="radio" name="diff" id="d-normal" value="normal" checked><span>Compétition</span></label>
-        <label><input type="radio" name="diff" id="d-pro" value="pro"><span>Pro</span></label>
+      <fieldset class="seg"><legend>Niveau</legend>
+        <label><input type="radio" name="diff" id="d-easy" value="easy"><span>1/2/3</span></label>
+        <label><input type="radio" name="diff" id="d-normal" value="normal" checked><span>4/5/6</span></label>
+        <label><input type="radio" name="diff" id="d-pro" value="pro"><span>7/8</span></label>
       </fieldset>
       <div class="row play-row">
         <button class="cta" id="playBtn" data-testid="btn-play">Jouer</button>
@@ -646,7 +646,7 @@ function gauss(){ let u=0,v=0; while(!u) u=Math.random(); while(!v) v=Math.rando
 function sideHeights(z){ const a=Math.abs(z); if(a>=8) return [3,4]; if(a>=6) return [2,3]; return [0,3]; }
 
 const settings = {players:'2v2', format:'quick', golden:true, diff:'normal'};
-const ballScale=()=>state.demo?1:(DIFF[settings.diff].ballScale||1); // la balle vit plus lentement : -32 % en Loisir, -10 % en Compétition, -5 % en Pro
+const ballScale=()=>state.demo?1:(DIFF[settings.diff].ballScale||1); // la balle vit plus lentement : -32 % en niveau 1/2/3, -10 % en 4/5/6, -5 % en 7/8
 // easy/normal/pro : adversaires. mate/matePro : votre partenaire, qui garde son niveau pour ne pas vous handicaper.
 const DIFF = {
   easy:  {speed:3.8, err:1.05, react:0.34, bad:0.16, ballScale:0.68},
