@@ -408,10 +408,6 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
         <label><input type="radio" name="diff" id="d-normal" value="normal" checked><span>Compétition</span></label>
         <label><input type="radio" name="diff" id="d-pro" value="pro"><span>Pro</span></label>
       </fieldset>
-      <fieldset class="seg"><legend>Aide à la frappe</legend>
-        <label><input type="radio" name="assist" id="a-on" value="1" checked><span>Activée<small>Frappe auto quand la balle est à portée</small></span></label>
-        <label><input type="radio" name="assist" id="a-off" value="0"><span>Désactivée<small>Vous déclenchez chaque coup</small></span></label>
-      </fieldset>
       <div class="row play-row">
         <button class="cta" id="playBtn" data-testid="btn-play">Jouer</button>
         <button class="cta alt" id="friendsBtn" data-testid="btn-friends">Jouer avec des amis</button>
@@ -551,7 +547,7 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
             <li>Renvoyez en <b>lob</b> (J) si les adversaires sont au filet, sinon en <b>drive</b> (L) bas.</li></ol></div>
           <div class="rule"><h3>Bon à savoir</h3><ul>
             <li>Une balle peut toucher <b>plusieurs vitres</b> (fond puis côté) : tant qu'elle n'a rebondi qu'une fois au sol, elle est jouable.</li>
-            <li>Avec l'aide à la frappe, il suffit d'être bien placé : le coup part tout seul.</li>
+            <li>Bien placé, vous pouvez frapper vous-même pour choisir votre coup. Sinon, la balle part toute seule au dernier moment.</li>
             <li>En attaque, un smash puissant rebondit haut sur la vitre adverse et peut sortir de la cage : <b>por 4</b>.</li>
             <li>Votre coup ne doit <b>jamais</b> toucher la vitre adverse avant le rebond au sol.</li>
             <li><b>Contre-vitre</b> : quand la balle vous a dépassé et file vers votre vitre, votre joueur la renvoie contre cette vitre. Elle rebondit et repasse le filet. C'est automatique.</li>
@@ -649,7 +645,7 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 function gauss(){ let u=0,v=0; while(!u) u=Math.random(); while(!v) v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 function sideHeights(z){ const a=Math.abs(z); if(a>=8) return [3,4]; if(a>=6) return [2,3]; return [0,3]; }
 
-const settings = {players:'2v2', format:'quick', golden:true, diff:'normal', assist:true};
+const settings = {players:'2v2', format:'quick', golden:true, diff:'normal'};
 const ballScale=()=>state.demo?1:(DIFF[settings.diff].ballScale||1); // la balle vit plus lentement : -32 % en Loisir, -10 % en Compétition, -5 % en Pro
 // easy/normal/pro : adversaires. mate/matePro : votre partenaire, qui garde son niveau pour ne pas vous handicaper.
 const DIFF = {
@@ -1218,7 +1214,7 @@ function onBallEvent(type,d){
 }
 // ===== Règles apprises en jouant : chaque explication s'affiche une seule fois sur l'appareil =====
 const TIPS={
-  incoming:()=>settings.assist?"Placez-vous sur l'hexagone rose : la frappe part toute seule quand la balle arrive.":"Placez-vous sur l'hexagone rose, puis frappez quand la balle arrive.",
+  incoming:"Placez-vous sur l'hexagone rose : frappez quand la balle arrive, sinon la frappe part toute seule au dernier moment.",
   glass:"La balle peut rebondir sur votre vitre : attendez qu'elle en ressorte pour la frapper.",
   'DOUBLE REBOND':"Double rebond : la balle ne doit toucher le sol qu'une fois avant d'être renvoyée.",
   'VITRE DIRECTE':"Votre balle doit d'abord rebondir chez l'adversaire avant de toucher une vitre.",
@@ -1528,6 +1524,13 @@ function quality(pl){
   let q=clamp(1-Math.max(0,d-0.55)/0.9,0.3,1);
   if(y<0.35||y>2.4) q*=0.85;
   return q;
+}
+// Frappe automatique au dernier moment : le joueur garde tout le temps de frapper lui-même (coup choisi, meilleure qualité) ;
+// sinon la balle est renvoyée juste avant de sortir de sa portée, pour qu'aucun point ne se perde faute d'avoir appuyé.
+function lastChance(pl){
+  const h=0.1*ballScale(), vy=ball.v.y-G*h;
+  const x=ball.p.x+ball.v.x*h, z=ball.p.z+ball.v.z*h, y=ball.p.y+(ball.v.y+vy)*0.5*h;
+  return Math.hypot(x-pl.pos.x,z-pl.pos.z)>0.8 || y<0.3 || y>2.6 || sideOf(z)!==pl.team;
 }
 // Frappe du joueur : un smash près du filet ouvre parfois le smash ciblé (ralenti + choix de trajectoire)
 function humanHit(pl,type,q){
@@ -1850,7 +1853,7 @@ function updatePlayers(dt){
         const assistOk = !state.training || R.glass;
         if(d<pl.reach && y>0.14 && y<2.9){
           if(pl.queued){ humanHit(pl,pl.queued.type,quality(pl)); pl.queued=null; }
-          else if(settings.assist && assistOk && d<0.9 && y>0.25 && y<2.65 && (ball.v.y<0.6 || y>0.9)) humanHit(pl, y>2.05?'smash':'volley', quality(pl)*0.88);
+          else if(assistOk && d<0.9 && y>0.25 && y<2.65 && (ball.v.y<0.6 || y>0.9) && lastChance(pl)) humanHit(pl, y>2.05?'smash':'volley', quality(pl)*0.85);
         }
       } else if(d<pl.reach && y>0.24 && y<2.85 && (ball.v.y<1.5 || y>0.8) && !(ball.trick && !R.glass) && !(pl.wantCV && ball.v.z*teamDir(pl.team)>0 && ball.p.z*teamDir(pl.team)<8.0)){ aiShot(pl); } // en contre-vitre, l'IA attend que la balle arrive près de sa vitre // un POR 3 / POR 4 réussi est injouable ; raté (il touche une vitre), il redevient jouable
     }
@@ -1991,13 +1994,12 @@ function readSettings(){
   settings.format=document.querySelector('input[name=format]:checked').value;
   settings.golden=document.querySelector('input[name=golden]:checked').value==='1';
   settings.diff=document.querySelector('input[name=diff]:checked').value;
-  settings.assist=document.querySelector('input[name=assist]:checked').value==='1';
   try{ localStorage.setItem('fullmotiv-settings',JSON.stringify(settings)); }catch(e){}
 }
 function loadSettings(){
   try{ const s=JSON.parse(localStorage.getItem('fullmotiv-settings')||'null'); if(!s) return;
     const set=(n,v)=>{ const el=document.querySelector(`input[name=${n}][value="${v}"]`); if(el) el.checked=true; };
-    set('players',s.players||'2v2'); set('format',s.format); set('golden',s.golden?'1':'0'); set('diff',s.diff); set('assist',s.assist?'1':'0');
+    set('players',s.players||'2v2'); set('format',s.format); set('golden',s.golden?'1':'0'); set('diff',s.diff);
   }catch(e){}
 }
 // Double ou simple : largeur du terrain, joueurs en jeu, carte du partenaire
@@ -2205,7 +2207,7 @@ function hostDrop(c){
   lobbyBroadcast();
 }
 function lobbyBroadcast(){ renderLobby(); netBroadcast({t:'lobby',slots:NET.slots.map(x=>x?x.name:null),players:settings.players}); }
-function startMsg(){ return {t:'start',settings:{format:settings.format,golden:settings.golden,diff:settings.diff,assist:settings.assist,players:settings.players},names:NET.slots.map(x=>x?x.name:null)}; }
+function startMsg(){ return {t:'start',settings:{format:settings.format,golden:settings.golden,diff:settings.diff,players:settings.players},names:NET.slots.map(x=>x?x.name:null)}; }
 function startNetMatch(){
   if(NET.role!=='host') return;
   const sp=slotPlayers();
