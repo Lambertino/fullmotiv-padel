@@ -1167,7 +1167,7 @@ const state={mode:'idle', training:false, tr:{ok:0,n:0}, trGlass:false, glassCue
 function inServeBox(x,z){
   const o=1-R.lastHitter; if(sideOf(z)!==o) return false;
   if(Math.abs(z)>SVC+BR) return false;
-  const tsx=-Math.sign(R.server.pos.x||1);
+  const tsx=R.serveTo; // carré visé figé au service : le serveur a pu se déplacer depuis
   return tsx>0 ? x>-BR : x<BR;
 }
 function onBallEvent(type,d){
@@ -1354,7 +1354,7 @@ function startServe(type){
 }
 function executeServe(){
   const s=R.server, o=1-s.team, od=teamDir(o);
-  const tsx=-Math.sign(s.pos.x||1);
+  const tsx=-Math.sign(s.pos.x||1); R.serveTo=tsx;
   let type=state.serveType, tx, tz, T, sigma;
   const k=K(), lim=CW-0.35;
   if(s.human){ tx=clamp((tsx*2.5+s.inp.x*1.9)*k, tsx>0?0.35:-lim, tsx>0?lim:-0.35); }
