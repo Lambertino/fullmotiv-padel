@@ -547,10 +547,10 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
             <li>Renvoyez en <b>lob</b> (J) si les adversaires sont au filet, sinon en <b>drive</b> (L) bas.</li></ol></div>
           <div class="rule"><h3>Bon à savoir</h3><ul>
             <li>Une balle peut toucher <b>plusieurs vitres</b> (fond puis côté) : tant qu'elle n'a rebondi qu'une fois au sol, elle est jouable.</li>
-            <li>Bien placé, vous pouvez frapper vous-même pour choisir votre coup. Sinon, la balle part toute seule au dernier moment.</li>
+            <li>Placez-vous sur l'hexagone rose et frappez quand la balle arrive : c'est vous qui déclenchez chaque coup.</li>
             <li>En attaque, un smash puissant rebondit haut sur la vitre adverse et peut sortir de la cage : <b>por 4</b>.</li>
             <li>Votre coup ne doit <b>jamais</b> toucher la vitre adverse avant le rebond au sol.</li>
-            <li><b>Contre-vitre</b> : quand la balle vous a dépassé et file vers votre vitre, votre joueur la renvoie contre cette vitre. Elle rebondit et repasse le filet. C'est automatique.</li>
+            <li><b>Contre-vitre</b> : quand la balle vous a dépassé et file vers votre vitre, votre joueur la renvoie contre cette vitre. Elle rebondit et repasse le filet. Il suffit de frapper : votre joueur choisit ce coup tout seul.</li>
             <li><b>Double vitre</b> : un drive croisé qui rebondit chez l'adversaire puis touche sa vitre latérale et sa vitre du fond. Parfois joué tout seul en attaque.</li></ul></div>
         </div>
         <button class="cta" id="helpTrainBtn">Essayer l'entraînement vitres</button>
@@ -1214,7 +1214,7 @@ function onBallEvent(type,d){
 }
 // ===== Règles apprises en jouant : chaque explication s'affiche une seule fois sur l'appareil =====
 const TIPS={
-  incoming:"Placez-vous sur l'hexagone rose : frappez quand la balle arrive, sinon la frappe part toute seule au dernier moment.",
+  incoming:"Placez-vous sur l'hexagone rose, puis frappez quand la balle arrive.",
   glass:"La balle peut rebondir sur votre vitre : attendez qu'elle en ressorte pour la frapper.",
   'DOUBLE REBOND':"Double rebond : la balle ne doit toucher le sol qu'une fois avant d'être renvoyée.",
   'VITRE DIRECTE':"Votre balle doit d'abord rebondir chez l'adversaire avant de toucher une vitre.",
@@ -1524,13 +1524,6 @@ function quality(pl){
   let q=clamp(1-Math.max(0,d-0.55)/0.9,0.3,1);
   if(y<0.35||y>2.4) q*=0.85;
   return q;
-}
-// Frappe automatique au dernier moment : le joueur garde tout le temps de frapper lui-même (coup choisi, meilleure qualité) ;
-// sinon la balle est renvoyée juste avant de sortir de sa portée, pour qu'aucun point ne se perde faute d'avoir appuyé.
-function lastChance(pl){
-  const h=0.1*ballScale(), vy=ball.v.y-G*h;
-  const x=ball.p.x+ball.v.x*h, z=ball.p.z+ball.v.z*h, y=ball.p.y+(ball.v.y+vy)*0.5*h;
-  return Math.hypot(x-pl.pos.x,z-pl.pos.z)>0.8 || y<0.3 || y>2.6 || sideOf(z)!==pl.team;
 }
 // Frappe du joueur : un smash près du filet ouvre parfois le smash ciblé (ralenti + choix de trajectoire)
 function humanHit(pl,type,q){
@@ -1849,12 +1842,8 @@ function updatePlayers(dt){
     if(state.mode==='rally' && canHit(pl) && (pl.human || !state.training)){
       const d=Math.hypot(ball.p.x-pl.pos.x,ball.p.z-pl.pos.z), y=ball.p.y;
       if(pl.human){
-        // à l'entraînement, l'aide attend que la balle ressorte de la vitre
-        const assistOk = !state.training || R.glass;
-        if(d<pl.reach && y>0.14 && y<2.9){
-          if(pl.queued){ humanHit(pl,pl.queued.type,quality(pl)); pl.queued=null; }
-          else if(assistOk && d<0.9 && y>0.25 && y<2.65 && (ball.v.y<0.6 || y>0.9) && lastChance(pl)) humanHit(pl, y>2.05?'smash':'volley', quality(pl)*0.85);
-        }
+        // aucune frappe automatique : le coup ne part que si le joueur a appuyé
+        if(d<pl.reach && y>0.14 && y<2.9 && pl.queued){ humanHit(pl,pl.queued.type,quality(pl)); pl.queued=null; }
       } else if(d<pl.reach && y>0.24 && y<2.85 && (ball.v.y<1.5 || y>0.8) && !(ball.trick && !R.glass) && !(pl.wantCV && ball.v.z*teamDir(pl.team)>0 && ball.p.z*teamDir(pl.team)<8.0)){ aiShot(pl); } // en contre-vitre, l'IA attend que la balle arrive près de sa vitre // un POR 3 / POR 4 réussi est injouable ; raté (il touche une vitre), il redevient jouable
     }
     if(pl.queued){ pl.queued.t-=dt; if(pl.queued.t<=0){ swingAnim(pl,pl.queued.type); pl.queued=null; } }
