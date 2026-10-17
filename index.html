@@ -550,7 +550,7 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
             <li>Placez-vous sur l'hexagone rose et frappez quand la balle arrive : c'est vous qui déclenchez chaque coup.</li>
             <li>En attaque, un smash puissant rebondit haut sur la vitre adverse et peut sortir de la cage : <b>por 4</b>.</li>
             <li>Votre coup ne doit <b>jamais</b> toucher la vitre adverse avant le rebond au sol.</li>
-            <li><b>Contre-vitre</b> : quand la balle vous a dépassé et file vers votre vitre, votre joueur la renvoie contre cette vitre. Elle rebondit et repasse le filet. Il suffit de frapper : votre joueur choisit ce coup tout seul.</li>
+            <li><b>Contre-vitre</b> : quand la balle a rebondi et file vers votre vitre, laissez-la arriver à votre hauteur puis frappez : elle part contre votre vitre, rebondit et repasse le filet. Bonne si elle retombe chez l'adversaire sans toucher de grillage.</li>
             <li><b>Double vitre</b> : un drive croisé qui rebondit chez l'adversaire puis touche sa vitre latérale et sa vitre du fond. Parfois joué tout seul en attaque.</li></ul></div>
         </div>
         <button class="cta" id="helpTrainBtn">Essayer l'entraînement vitres</button>
@@ -1232,7 +1232,7 @@ const TIPS={
   golden:"Point en or : à 40-40, le point suivant remporte le jeu.",
   padlob:()=>document.body.classList.contains('touch')?"Lob conseillé : glissez le pad du bas vers le haut.":"Lob conseillé : appuyez sur J, ou glissez le pad vers le haut.",
   padsmash:()=>document.body.classList.contains('touch')?"Smash conseillé : glissez le pad du haut vers le bas.":"Smash conseillé : appuyez sur K, ou glissez le pad vers le bas.",
-  contre:"Contre-vitre : on peut renvoyer la balle contre sa propre vitre, jamais contre son grillage.",
+  contre:"Contre-vitre : laissez filer la balle jusqu'à votre hauteur puis frappez. Elle repart contre votre vitre et repasse le filet (jamais contre le grillage).",
   double:"Double vitre : après son rebond, la balle peut toucher plusieurs vitres et reste jouable."
 };
 let tipsSeen={}; try{ tipsSeen=JSON.parse(localStorage.getItem('fullmotiv-tips')||'{}'); }catch(e){}
@@ -1401,7 +1401,7 @@ function swingAnim(pl,type){ pl.swing=0.32; pl.swingType=type; }
 // elle rebondit dessus et repasse le filet. Légal sur la vitre, faute sur son propre grillage.
 function solveContreVitre(p0, team, tx, tzAbs){
   const sd=teamDir(team); let best=null;
-  for(let vzb=4; vzb<=13; vzb+=1) for(let vy=2.5; vy<=10; vy+=0.5){
+  for(let vzb=4; vzb<=18; vzb+=1) for(let vy=2.5; vy<=12; vy+=0.5){
     const s={p:p0.clone(), v:new V3(0,vy,sd*vzb), outside:false, netTouched:false, rolling:false};
     let glass=false, ok=true, land=null, crossed=false, t=0;
     const cb=(type,d)=>{
@@ -1412,7 +1412,7 @@ function solveContreVitre(p0, team, tx, tzAbs){
     };
     for(let i=0;i<480 && ok && !land;i++){ integrate(s,1/120,cb); t+=1/120; }
     if(!ok || !glass || !crossed || !land || sideOf(land.z)===team) continue;
-    const err=Math.abs(Math.abs(land.z)-tzAbs);
+    const err=Math.abs(Math.abs(land.z)-tzAbs)+0.06*(vzb+vy); // à précision égale, le coup le plus lent est le moins risqué
     if(!best || err<best.err) best={err, vy, vz:sd*vzb, t:land.t};
   }
   if(!best) return null;
@@ -1421,7 +1421,10 @@ function solveContreVitre(p0, team, tx, tzAbs){
 // Probabilité de jouer contre-vitre : balle qui a rebondi et file vers sa vitre de fond.
 function contreVitreChance(pl){
   const sd=teamDir(pl.team), bz=ball.p.z*sd, pz=pl.pos.z*sd;
-  if(R.bounces!==1 || R.isServe || bz<6.8 || bz>9.75 || ball.p.y>2.1 || ball.v.z*sd<=0) return 0;
+  if(R.bounces!==1 || R.isServe || ball.v.z*sd<=0 || bz>9.75) return 0;
+  // joueur humain : laisser passer la balle, puis frapper quand elle est à sa hauteur ou dans son dos = contre-vitre à coup sûr
+  if(pl.human) return (bz>4.5 && ball.p.y<2.4 && bz>pz-0.3) ? 1 : 0;
+  if(bz<6.8 || ball.p.y>2.1) return 0;
   if(bz>pz+0.1) return 0.9;           // balle dans le dos : sauvetage quasi systématique
   if(ball.p.y<1.2) return 0.4;        // balle basse qui part vers la vitre
   return 0.15;
@@ -1844,6 +1847,7 @@ function updatePlayers(dt){
       if(pl.human){
         // aucune frappe automatique : le coup ne part que si le joueur a appuyé
         if(d<pl.reach && y>0.14 && y<2.9 && pl.queued){ humanHit(pl,pl.queued.type,quality(pl)); pl.queued=null; }
+        else if(d<pl.reach && contreVitreChance(pl)===1) tip('contre'); // la balle file dans son dos : on lui apprend le contre-vitre (une fois, entre deux points)
       } else if(d<pl.reach && y>0.24 && y<2.85 && (ball.v.y<1.5 || y>0.8) && !(ball.trick && !R.glass) && !(pl.wantCV && ball.v.z*teamDir(pl.team)>0 && ball.p.z*teamDir(pl.team)<8.0)){ aiShot(pl); } // en contre-vitre, l'IA attend que la balle arrive près de sa vitre // un POR 3 / POR 4 réussi est injouable ; raté (il touche une vitre), il redevient jouable
     }
     if(pl.queued){ pl.queued.t-=dt; if(pl.queued.t<=0){ swingAnim(pl,pl.queued.type); pl.queued=null; } }
