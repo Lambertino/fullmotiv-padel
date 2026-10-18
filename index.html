@@ -432,7 +432,7 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
     <div class="panel">
       <div class="eyebrow">Match en pause</div>
       <h1>Pause</h1>
-      <div class="row"><button class="cta" id="resumeBtn">Reprendre</button><button class="cta ghost" id="pauseRulesBtn">Règles & touches</button><button class="cta ghost" id="quitBtn">Quitter</button></div>
+      <div class="row"><button class="cta" id="resumeBtn">Reprendre</button><button class="cta ghost" id="pauseRulesBtn">Règles & touches</button><button class="cta ghost" id="soundBtn" data-testid="btn-sound">Son : activé</button><button class="cta ghost" id="quitBtn">Quitter</button></div>
     </div>
   </div>
 
@@ -647,11 +647,11 @@ const settings = {players:'2v2', format:'quick', golden:true, diff:'normal'};
 const ballScale=()=>state.demo?1:(DIFF[settings.diff].ballScale||1); // la balle vit plus lentement : -32 % en niveau 1/2/3, -10 % en 4/5/6, -5 % en 7/8
 // easy/normal/pro : adversaires. mate/matePro : votre partenaire, qui garde son niveau pour ne pas vous handicaper.
 const DIFF = {
-  easy:  {speed:3.8, err:1.05, react:0.34, bad:0.16, ballScale:0.68},
-  normal:{speed:4.2, err:0.85, react:0.27, bad:0.12, ballScale:0.9},
-  pro:   {speed:4.9, err:0.56, react:0.18, bad:0.065, ballScale:0.95},
-  mate:   {speed:4.6, err:0.72, react:0.22, bad:0.09},
-  matePro:{speed:5.3, err:0.45, react:0.14, bad:0.045}
+  easy:  {speed:3.8, err:1.05, react:0.34, bad:0.16, ballScale:0.68, reach:0.25, win:0.65, kill:0.15}, // kill : part des smashs au filet que l'IA tente de faire sortir (por 3 / por 4) // reach/win : portée en plus et durée de prise en compte de l'appui du joueur
+  normal:{speed:4.2, err:0.85, react:0.27, bad:0.12, ballScale:0.9, reach:0.1, win:0.5, kill:0.3},
+  pro:   {speed:4.9, err:0.56, react:0.18, bad:0.065, ballScale:0.95, reach:0, win:0.42, kill:0.45},
+  mate:   {speed:4.6, err:0.72, react:0.22, bad:0.09, kill:0.3},
+  matePro:{speed:5.3, err:0.45, react:0.14, bad:0.045, kill:0.45}
 };
 
 /* ===================== renderer ===================== */
@@ -1106,6 +1106,38 @@ targetMark.rotation.x=-Math.PI/2; targetMark.position.y=0.02; scene.add(targetMa
 
 const ripples=[];
 for(let i=0;i<6;i++){ const r=new THREE.Mesh(new THREE.RingGeometry(0.15,0.24,6),basic(0xff9fbe,{transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending})); r.visible=false; scene.add(r); ripples.push({m:r,t:0}); }
+// ===== Son (synthétisé, aucun fichier) et vibreur =====
+let AC=null, MASTER=null, NOISE=null;
+let soundOn=true; try{ soundOn=localStorage.getItem('fullmotiv-sound')!=='0'; }catch(e){}
+function audioInit(){
+  if(AC){ if(AC.state==='suspended') AC.resume(); return; }
+  try{ AC=new (window.AudioContext||window.webkitAudioContext)(); MASTER=AC.createGain(); MASTER.gain.value=0.8; MASTER.connect(AC.destination);
+    NOISE=AC.createBuffer(1,AC.sampleRate,AC.sampleRate); const d=NOISE.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; }catch(e){ AC=null; }
+}
+addEventListener('pointerdown',audioInit,{passive:true}); addEventListener('keydown',audioInit);
+function env(g,t,a,peak,dec){ g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+a); g.gain.exponentialRampToValueAtTime(0.0001,t+a+dec); }
+function noiseHit(t,type,freq,q,peak,dec,a=0.002){ const n=AC.createBufferSource(); n.buffer=NOISE; n.loop=true; const f=AC.createBiquadFilter(); f.type=type; f.frequency.value=freq; f.Q.value=q; const g=AC.createGain(); env(g,t,a,peak,dec); n.connect(f).connect(g).connect(MASTER); n.start(t,Math.random()*0.5); n.stop(t+a+dec+0.05); return g; }
+function tone(t,f0,f1,peak,dec,type='sine'){ const o=AC.createOscillator(); o.type=type; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(f1,t+dec); const g=AC.createGain(); env(g,t,0.003,peak,dec); o.connect(g).connect(MASTER); o.start(t); o.stop(t+dec+0.05); }
+const sfxLast={};
+function play(k,o={}){
+  if(!AC || !soundOn || state.demo || AC.state!=='running') return;
+  const t=AC.currentTime; if(t-(sfxLast[k]||0)<0.04) return; sfxLast[k]=t; // pas de rafale sur un même son
+  const v=o.v||0.7;
+  if(k==='hit'){ noiseHit(t,'bandpass',1700,1.2,0.5*v,0.05); tone(t,190,85,0.45*v,0.07,'triangle'); }
+  else if(k==='bounce'){ tone(t,130,60,0.28,0.08); noiseHit(t,'lowpass',700,0.7,0.08,0.05); }
+  else if(k==='glass'){ noiseHit(t,'bandpass',950,5,0.32,0.16); tone(t,330,250,0.16,0.22); }
+  else if(k==='mesh'){ const g=noiseHit(t,'highpass',2600,0.8,0.22,0.24); const lfo=AC.createOscillator(); lfo.type='square'; lfo.frequency.value=38; const lg=AC.createGain(); lg.gain.value=0.5; lfo.connect(lg).connect(g.gain); lfo.start(t); lfo.stop(t+0.3); }
+  else if(k==='net'){ noiseHit(t,'lowpass',420,0.8,0.25,0.12); }
+  else if(k==='cheer'){ const mine=ME && o.w===ME.team; noiseHit(t,'bandpass',1150,0.6,mine?0.2:0.08,mine?1.5:0.8,0.25); }
+}
+function buzz(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} } // Android ; iOS Safari ne donne pas accès au vibreur
+// Joue un son et le relaie aux invités ; o.pl = index du frappeur pour faire vibrer son téléphone
+function sfx(k,o={}){
+  if(NET.role==='host' && NET.live) netBroadcast({t:'sn',k,v:o.v,w:o.w,pl:o.pl});
+  play(k,o);
+  if(k==='hit' && ALL[o.pl]===ME && ME.ctl==='local' && !state.demo) buzz(o.v>0.9?30:16);
+}
+function setSound(on){ soundOn=on; try{ localStorage.setItem('fullmotiv-sound',on?'1':'0'); }catch(e){} const b=document.getElementById('soundBtn'); if(b) b.textContent=on?'Son : activé':'Son : coupé'; }
 function ripple(x,y,z,wall){
   if(NET.role==='host' && NET.live) netBroadcast({t:'r',x:r3(x),y:r3(y),z:r3(z),wall});
   const r=ripples.find(q=>q.t<=0)||ripples[0];
@@ -1176,6 +1208,7 @@ function inServeBox(x,z){
   return tsx>0 ? x>-BR : x<BR;
 }
 function onBallEvent(type,d){
+  if(state.mode!=='idle'){ if(type==='floor') sfx('bounce'); else if(type==='wall') sfx(d.kind==='glass'?'glass':'mesh'); else if(type==='net') sfx('net'); }
   if(type==='wall' && d.kind==='glass' && state.mode!=='idle') ripple(d.x,d.y,d.z,d.wall);
   if(!R.live) return;
   const T=R.lastHitter, O=1-T;
@@ -1255,7 +1288,7 @@ function tip(key){
 function win(t,label){ endPoint(t,label); }
 function fault(t,label){ endPoint(1-t,label); }
 function endPoint(w,label){
-  R.live=false; state.mode='over'; state.timer=state.practice?1.0:1.7; state.pending=w;
+  R.live=false; state.mode='over'; state.timer=state.practice?1.0:1.7; state.pending=w; sfx('cheer',{w});
   if(state.practice && w===0) label='BIEN JOUÉ !';
   if(label){ callout(label, ball.p, (w===0)?'good':'bad'); tip(label); }
 }
@@ -1368,7 +1401,7 @@ function executeServe(){
   const v=solve(p0,tx,tz,T, Math.random()<(s.human?(type==='smash'?0.07:0.025):0.03));
   ball.v.copy(v); ball.kick=0; ball.netTouched=false; ball.rolling=false; ball.outside=false;
   R.lastHitter=s.team; R.crossed=false; R.bounces=0; R.isServe=true; R.touchedNet=false; R.live=true;
-  swingAnim(s,'volley');
+  swingAnim(s,'volley'); sfx('hit',{pl:ALL.indexOf(s),v:type==='smash'?1:0.75});
   state.mode='rally'; state.planT=0;
   for(const p of players) if(p.team===o) p.react=0.1;
 }
@@ -1480,7 +1513,7 @@ function doHit(pl,type,q,trick,forceCV){
     // coup de défense : retour plus court et plus haut, donc attaquable, et assez souvent raté (filet, grillage, dehors)
     cv=solveContreVitre(p0, t, clamp(aimX,-3.6*k,3.6*k), forceCV?rand(4.5,7):rand(6,8.6));
     if(cv){ const e=(pl.human?0.25+(1-q)*0.5:DIFF[t===0?partnerDiff():settings.diff].err*0.4); cv.x+=gauss()*e*0.6; cv.y+=gauss()*e*0.25;
-      if(!pl.human && Math.random()<0.3){ cv.y*=rand(0.55,0.8); cv.z*=rand(0.8,1.15); } }
+      if(!pl.human && Math.random()<0.12){ cv.y*=rand(0.55,0.8); cv.z*=rand(0.8,1.15); } }
   }
   // double vitre : drive croisé vers le coin adverse, la balle rebondit puis touche la vitre latérale et celle du fond
   let doubleVitre=false;
@@ -1501,7 +1534,8 @@ function doHit(pl,type,q,trick,forceCV){
   else { const d=DIFF[t===0?partnerDiff():settings.diff]; sigma=d.err*(0.55+(1-q)); if(Math.random()<d.bad) sigma*=2.6; netErr=Math.random()<d.bad*0.35; }
   if(eff==='smash') sigma*=1.25;
   if(doubleVitre) sigma*=0.6;
-  const xl=CW-(doubleVitre?0.55:0.7), tx=clamp(aimX,-xl,xl)+gauss()*sigma;
+  const xl=CW-(doubleVitre?0.55:0.7); let tx=clamp(aimX,-xl,xl)+gauss()*sigma;
+  if(!pl.human) tx=clamp(tx,-(CW-0.3),CW-0.3); // l'IA rate en longueur ou dans le filet, rarement en tapant le côté avant le rebond
   const tz2=tz+gauss()*sigma*0.75;
   ball.kick=0; ball.trick=null;
   if(trick){ eff='smash'; ball.v.copy(trick.v); ball.kick=trick.kick; ball.trick=trick.ok?trick.kind:null; }
@@ -1510,6 +1544,7 @@ function doHit(pl,type,q,trick,forceCV){
   const wasServeReturn=R.isServe;
   R.lastHitter=t; R.crossed=false; R.bounces=0; R.touchedNet=false; R.isServe=false; R.glass=false; R.gh=0; R.gw='';
   swingAnim(pl, eff==='smash'||eff==='bandeja'?'smash':eff==='contre'?'lob':eff);
+  sfx('hit',{pl:ALL.indexOf(pl),v:eff==='smash'?1:eff==='lob'||eff==='contre'?0.55:0.75});
   if(eff==='contre'){ pl.faceBack=0.5; callout('CONTRE-VITRE !',p0,pl.team===0?'good':'info'); tip('contre'); }
   state.planT=0;
   for(const p of opps) p.react=DIFF[o===0?partnerDiff():settings.diff].react;
@@ -1595,7 +1630,14 @@ function aiShot(pl){
   let type='volley';
   if(pl.wantCV && contreVitreChance(pl)>0){ pl.wantCV=false; return doHit(pl,'volley',rand(0.7,1),null,true); }
   pl.wantCV=false;
-  if(y>2.0) type='smash';
+  if(y>2.0){
+    type='smash';
+    // smash gagnant : près du filet, l'IA tente de faire sortir la balle de la cage ; une part reste dans le terrain
+    if(Math.abs(ball.p.z)<6.2 && Math.random()<(DIFF[pl.team===0?partnerDiff():settings.diff].kill||0)){
+      const tr=solveTrick(ball.p.clone(),pl.team,Math.random()<0.5?'por3':'por4');
+      if(tr){ const t={...tr, ok:true}; if(Math.random()<0.3){ t.kick=1+(tr.kick-1)*0.45; t.ok=false; } return doHit(pl,'smash',rand(0.7,1),t); }
+    }
+  }
   else if(oppsNet && !near && Math.random()<0.45) type='lob';
   else if(!near && Math.random()<0.1) type='lob';
   doHit(pl,type,rand(0.55,1));
@@ -1603,7 +1645,7 @@ function aiShot(pl){
 
 /* ===================== AI planning ===================== */
 // Défense contre-vitre : l'IA laisse filer la balle vers sa vitre de fond pour la renvoyer contre elle.
-const CV_RATE=0.4; // part des balles profondes que l'IA choisit de jouer en contre-vitre
+const CV_RATE=0.3; // part des balles profondes que l'IA choisit de jouer en contre-vitre
 function deepIntercept(pl, samples, reactT){
   const sd=teamDir(pl.team); let prev=null;
   for(const s of samples){
@@ -1754,7 +1796,7 @@ function queueShot(type,win){
 function queueShotFor(pl,type,win){
   if(state.mode==='serve' && R.server===pl){ startServe(type); return; }
   if(state.mode!=='rally') return;
-  pl.queued={type,t:win||0.42};
+  pl.queued={type,t:win||DIFF[settings.diff].win||0.42};
 }
 
 /* ===================== HUD ===================== */
@@ -1798,7 +1840,7 @@ function updateScoreHUD(){
 }
 
 /* ===================== update ===================== */
-function tossEvent(type){ if(type==='floor') state.tossBounced=true; }
+function tossEvent(type){ if(type==='floor'){ state.tossBounced=true; sfx('bounce'); } }
 function update(dt){
   if(state.aim){ updateAim(dt); updateVisuals(0); return; } // ralenti du smash ciblé : le jeu est figé
   // ball
@@ -2013,7 +2055,7 @@ function applyRoles(){
     p.human=!state.demo && (p.ctl==='local' || p.ctl==='remote');
     const d=DIFF[p.team===0?partnerDiff():settings.diff];
     p.speed=p.human?5.0:(state.demo?4.6:d.speed);
-    p.reach=p.human?(p.ctl==='remote'?1.25:(touch?1.3:1.12)):1.05;
+    p.reach=p.human?(p.ctl==='remote'?1.25:(touch?1.3:1.12))+(DIFF[settings.diff].reach||0):1.05;
   }
 }
 function startMatch(){
@@ -2047,6 +2089,8 @@ function matchOver(w){
 document.getElementById('playBtn').addEventListener('click',startMatch);
 document.getElementById('pauseBtn').addEventListener('click',togglePause);
 document.getElementById('resumeBtn').addEventListener('click',togglePause);
+document.getElementById('soundBtn').addEventListener('click',()=>{ audioInit(); setSound(!soundOn); });
+setSound(soundOn);
 document.getElementById('quitBtn').addEventListener('click',()=>{ if(NET.role) resetNet(); toMenu(); });
 document.getElementById('againBtn').addEventListener('click',()=>{ if(NET.role==='host') startNetMatch(); else startMatch(); });
 document.getElementById('menuBtn').addEventListener('click',()=>{ if(NET.role) resetNet(); toMenu(); });
@@ -2235,6 +2279,7 @@ function guestOnData(m){
   else if(m.t==='c'){ const cls=ME.team===1?({good:'bad',bad:'good'}[m.cls]||m.cls):m.cls; callout(m.text,new V3(m.x,m.y,m.z),cls); }
   else if(m.t==='bn'){ banner(m.main,m.sub,m.ms); }
   else if(m.t==='r'){ ripple(m.x,m.y,m.z,m.wall); }
+  else if(m.t==='sn'){ play(m.k,m); if(m.k==='hit' && ALL[m.pl]===ME) buzz(m.v>0.9?30:16); }
   else if(m.t==='end'){ guestEnd(m); }
   else if(m.t==='bye'){ guestHostLeft(); }
 }
