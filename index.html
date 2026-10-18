@@ -2100,7 +2100,7 @@ document.getElementById('menuBtn').addEventListener('click',()=>{ if(NET.role) r
 
 /* ===================== mesure d'audience (PostHog, sans cookie) ===================== */
 // Clé publique du projet PostHog (région UE). Vide = aucune mesure envoyée.
-const PH_KEY='';
+const PH_KEY='phc_oHwBN2gfue7N3zdsWbrLqRLRYfbuFHgfZhPgkMH7qT2R'; // projet 310782, EU Cloud
 let PH=null; const phQueue=[];
 function phLoad(){
   if(!PH_KEY || PH || /[?&](og|debug)\b/.test(location.search)) return;
