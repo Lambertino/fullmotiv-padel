@@ -194,7 +194,6 @@ body.touch .only-desk{display:none}
 .result{font:800 clamp(30px,5vw,48px)/1 var(--display);text-transform:uppercase;letter-spacing:.03em}
 .sets{font:700 26px/1 var(--display);color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:.06em}
 #helpBtn{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:66px;pointer-events:auto;width:42px;height:42px;border-radius:8px;background:var(--panel);border:1px solid var(--edge);font:800 20px/1 var(--display);color:var(--fg)}
-#score.training table{display:none}
 @media (max-width:600px){#score td{font-size:18px;padding:2px 8px}#score td.tn{min-width:78px}}
 .overlay.solid{background:rgba(6,21,20,.95)}
 .panel.help{max-width:760px;gap:16px}
@@ -413,7 +412,6 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
         <button class="cta alt" id="friendsBtn" data-testid="btn-friends">Jouer avec des amis</button>
       </div>
       <div class="row">
-        <button class="cta ghost" id="trainBtn" data-testid="btn-training">Entraînement vitres</button>
         <button class="cta ghost" id="rulesBtn" data-testid="btn-rules">Règles & touches</button>
       </div>
       <div class="keys only-desk">
@@ -553,7 +551,6 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
             <li><b>Contre-vitre</b> : quand la balle a rebondi et file vers votre vitre, laissez-la arriver à votre hauteur puis frappez : elle part contre votre vitre, rebondit et repasse le filet. Bonne si elle retombe chez l'adversaire sans toucher de grillage.</li>
             <li><b>Double vitre</b> : un drive croisé qui rebondit chez l'adversaire puis touche sa vitre latérale et sa vitre du fond. Parfois joué tout seul en attaque.</li></ul></div>
         </div>
-        <button class="cta" id="helpTrainBtn">Essayer l'entraînement vitres</button>
       </div>
 
       <div class="row"><button class="cta ghost" id="helpClose">Fermer</button></div>
@@ -1158,7 +1155,7 @@ function simulate(maxT){
 /* ===================== rules ===================== */
 const R={live:false,isServe:true,serveNum:1,server:null,receiver:null,serveRight:true,lastHitter:-1,crossed:false,bounces:0,touchedNet:false,glass:false};
 const S={sets:[],games:[0,0],points:[0,0],tiebreak:false,gameIndex:0,setsWon:[0,0]};
-const state={mode:'idle', training:false, tr:{ok:0,n:0}, trGlass:false, glassCues:0, cueHit:-1, hitId:0, paused:false, timer:0, tossBounced:false, planT:0, pred:null, pending:null, demo:true};
+const state={mode:'idle', cueHit:-1, hitId:0, paused:false, timer:0, tossBounced:false, planT:0, pred:null, pending:null, demo:true};
 
 function inServeBox(x,z){
   const o=1-R.lastHitter; if(sideOf(z)!==o) return false;
@@ -1180,11 +1177,6 @@ function onBallEvent(type,d){
     const side=sideOf(d.z);
     if(!R.crossed){ if(R.isServe) return serveFault(R.touchedNet?'Filet':'Faute'); return fault(T, R.touchedNet?'FILET':'FAUTE'); }
     if(side!==O) return;
-    if(state.training && T===0 && R.bounces===0){
-      R.live=false; state.mode='over'; state.timer=1.1; state.pending=-3;
-      if(state.trGlass){ state.tr.ok++; callout('RÉUSSI !',ball.p,'good'); } else callout('RETOUR SANS VITRE',ball.p,'info');
-      updateScoreHUD(); return;
-    }
     if(R.bounces===0){
       R.bounces=1;
       if(R.isServe){
@@ -1241,7 +1233,7 @@ const tipEl=document.getElementById('tip'); let tipTO;
 const tipQueue=[];
 function flushTips(){ while(tipQueue.length){ const k=tipQueue.shift(); if(!tipsSeen[k]){ tip(k); return; } } }
 function tip(key){
-  if(state.demo || state.training || !TIPS[key] || tipsSeen[key]) return;
+  if(state.demo || !TIPS[key] || tipsSeen[key]) return;
   if(state.mode==='rally'){ if(!tipQueue.includes(key)) tipQueue.push(key); return; }
   tipsSeen[key]=1; try{ localStorage.setItem('fullmotiv-tips',JSON.stringify(tipsSeen)); }catch(e){}
   const t=TIPS[key]; tipEl.querySelector('span').textContent=typeof t==='function'?t():t;
@@ -1331,7 +1323,6 @@ function setupPoint(keepServe){
 function holdBall(){ const s=R.server; ball.p.set(s.pos.x-0.25*teamDir(s.team), 1.0, s.pos.z-teamDir(s.team)*0.35); }
 function showServeHint(){
   const h=document.getElementById('hint');
-  if(state.training) return;
   if(state.demo || R.server!==ME || state.mode!=='serve'){ h.hidden=true; document.body.classList.remove('serving'); return; }
   h.hidden=false; document.body.classList.add('serving');
   const touch=document.body.classList.contains('touch');
@@ -1387,7 +1378,6 @@ function partnerDiff(){ return settings.diff==='pro'?'matePro':'mate'; }
 
 function nextAfterPoint(){
   const w=state.pending;
-  if(state.training){ if(w===0 && R.lastHitter===1) state.tr.n=Math.max(0,state.tr.n-1); if(w===1 && !state.demo) trainTip(); return setupFeed(); }
   if(w>=0){
     const r=awardPoint(w);
     if(r==='match'){ if(state.demo){ resetScore(); } else return matchOver(S.setsWon[0]>S.setsWon[1]?0:1); }
@@ -1460,7 +1450,7 @@ function solveTrick(p0, team, kind){
 function doHit(pl,type,q,trick,forceCV){
   const t=pl.team, o=1-t, od=teamDir(o), p0=ball.p.clone();
   const volley=R.bounces===0, glassRet=R.glass;
-  state.hitId++; if(pl.human) state.trGlass=glassRet;
+  state.hitId++;
   const opps=players.filter(p=>p.team===o);
   let aimX; const k=K();
   if(pl.human){
@@ -1530,7 +1520,7 @@ function quality(pl){
 }
 // Frappe du joueur : un smash près du filet ouvre parfois le smash ciblé (ralenti + choix de trajectoire)
 function humanHit(pl,type,q){
-  if(type==='smash' && pl.ctl==='local' && !state.training && !state.demo && ball.p.y>2.0 && Math.abs(ball.p.z)<6.2){
+  if(type==='smash' && pl.ctl==='local' && !state.demo && ball.p.y>2.0 && Math.abs(ball.p.z)<6.2){
     const now=performance.now()/1000;
     const first=!state.aimCount;
     if(first || (now-(state.lastAim||0)>20 && Math.random()<0.4)){ if(enterAim(pl,q)) return; }
@@ -1636,13 +1626,12 @@ function plan(){
   const team=players.filter(p=>p.team===tm);
   for(const pl of team){
     const rt=Math.max(0,pl.react);
-    if(pl.cvHit!==state.hitId){ pl.cvHit=state.hitId; pl.wantCV=!pl.human && !R.isServe && !state.training && Math.random()<CV_RATE; }
+    if(pl.cvHit!==state.hitId){ pl.cvHit=state.hitId; pl.wantCV=!pl.human && !R.isServe && Math.random()<CV_RATE; }
     const deep=pl.wantCV ? deepIntercept(pl,sim.samples,rt) : null;
     if(pl.wantCV && !deep) pl.wantCV=false;
     pl.intercept = deep || bestIntercept(pl,sim.samples,rt);
   }
   if(R.isServe){ R.receiver.assigned=true; return; }
-  if(state.training){ if(tm===ME.team) ME.assigned=true; return; }
   if(team.length===1){ team[0].assigned=true; return; } // simple : chacun couvre tout son terrain
   const [a,b]=team;
   const cost=(pl)=>{ const s=pl.intercept; if(!s) return 99; return Math.hypot(s.x-pl.pos.x,s.z-pl.pos.z)/pl.speed - (pl.prevAssigned?0.25:0); };
@@ -1773,10 +1762,7 @@ function banner(main,sub,ms){
   clearTimeout(bannerTO); bannerTO=setTimeout(()=>{bannerEl.hidden=true;},ms||1500);
 }
 function updateScoreHUD(){
-  const scEl=document.getElementById('score');
-  scEl.classList.toggle('training',state.training);
   const cap=document.getElementById('scInfo');
-  if(state.training){ cap.textContent='Entraînement vitres · réussis '+state.tr.ok+' / '+state.tr.n; return; }
   const tbody=document.querySelector('#score tbody');
   [0,1].forEach(t=>{
     const tr=tbody.children[t];
@@ -1809,7 +1795,6 @@ function update(dt){
     if(ball.p.lengthSq()>3600){ ball.v.set(0,0,0); ball.held=true; }
   } else if(state.mode==='serve') holdBall();
 
-  if(state.mode==='feed'){ holdBall(); state.timer-=dt; if(state.timer<=0) feedBall(); }
   if(state.mode==='serve' && R.server.ctl!=='local'){ state.timer-=dt; if(state.timer<=0) startServe(R.serveNum===1?(Math.random()<0.3?'smash':'volley'):'lob'); }
   if(state.mode==='rally'){ state.planT-=dt; if(state.planT<=0) plan(); }
   if(state.mode==='over'){ state.timer-=dt; if(state.timer<=0) nextAfterPoint(); }
@@ -1842,7 +1827,7 @@ function updatePlayers(dt){
     pl.energy=clamp(pl.energy+(spd>3.5?-0.05:0.06)*dt,0.35,1);
 
     // hitting
-    if(state.mode==='rally' && canHit(pl) && (pl.human || !state.training)){
+    if(state.mode==='rally' && canHit(pl)){
       const d=Math.hypot(ball.p.x-pl.pos.x,ball.p.z-pl.pos.z), y=ball.p.y;
       if(pl.human){
         // aucune frappe automatique : le coup ne part que si le joueur a appuyé
@@ -1916,7 +1901,7 @@ function updateVisuals(dt){
     if(ti.g && state.cueHit!==state.hitId){ state.cueHit=state.hitId; tip('glass'); } }
   updateSuggest();
   const yt=document.getElementById('youTag');
-  const showYou=!state.demo && !state.paused && (state.mode==='serve'||state.mode==='toss'||state.mode==='feed');
+  const showYou=!state.demo && !state.paused && (state.mode==='serve'||state.mode==='toss');
   if(showYou){ _v.set(ME.pos.x,2.15,ME.pos.z).project(camera); yt.style.left=((_v.x*0.5+0.5)*stage.clientWidth)+'px'; yt.style.top=((-_v.y*0.5+0.5)*stage.clientHeight)+'px'; }
   yt.hidden=!showYou;
   for(const r of ripples){ if(r.t>0){ r.t-=dt; const u=1-r.t/0.6; r.m.scale.setScalar(1+u*5); r.m.material.opacity=(1-u)*0.9; if(r.t<=0) r.m.visible=false; } }
@@ -2018,7 +2003,7 @@ function applyRoles(){
   }
 }
 function startMatch(){
-  readSettings(); setLayout(); state.training=false; state.glassCues=0; state.aimCount=0; state.lastAim=0; state.demo=false; state.paused=false; resetScore();
+  readSettings(); setLayout(); state.aimCount=0; state.lastAim=0; state.demo=false; state.paused=false; resetScore();
   applyRoles();
   menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false;
   callEl.innerHTML='';
@@ -2026,7 +2011,7 @@ function startMatch(){
   banner(TEAM[0]+' – '+TEAM[1], (SINGLE?'1 contre 1 · ':'')+(settings.format==='quick'?'Match rapide · 1 set':'Match complet · 2 sets gagnants'),1600);
 }
 function toMenu(){
-  state.demo=true; state.training=false; state.paused=false; applyRoles(); resetScore(); helpEl.hidden=true;
+  state.demo=true; state.paused=false; applyRoles(); resetScore(); helpEl.hidden=true;
   hudEl.hidden=true; pauseEl.hidden=true; endEl.hidden=true; menuEl.hidden=false; bannerEl.hidden=true; document.getElementById('hint').hidden=true; document.body.classList.remove('serving');
   setupPoint(false);
 }
@@ -2051,41 +2036,6 @@ document.getElementById('quitBtn').addEventListener('click',()=>{ if(NET.role) r
 document.getElementById('againBtn').addEventListener('click',()=>{ if(NET.role==='host') startNetMatch(); else startMatch(); });
 document.getElementById('menuBtn').addEventListener('click',()=>{ if(NET.role) resetNet(); toMenu(); });
 
-/* ===================== entraînement vitres ===================== */
-function startTraining(){
-  readSettings(); setLayout(); state.demo=false; state.training=true; state.paused=false; state.tr={ok:0,n:0}; resetScore();
-  applyRoles();
-  menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; helpEl.hidden=true; hudEl.hidden=false; callEl.innerHTML='';
-  setupFeed();
-}
-function setupFeed(){
-  const h=ME, f=P(1,0), k=K();
-  placeFor(h, 2.0*k, 7.2); placeFor(P(0,1), -2.4, 3.4); placeFor(f, -1.2*k, -6.6); placeFor(P(1,1), 2.4, -7.4);
-  R.server=f; R.receiver=null; R.isServe=false; R.live=false; R.crossed=false; R.bounces=0; R.lastHitter=1; R.touchedNet=false; R.glass=false;
-  for(const p of players){ p.queued=null; p.intercept=null; p.assigned=false; p.swing=0; }
-  ball.held=true; ball.v.set(0,0,0); ball.outside=false; ball.rolling=false; ball.netTouched=false;
-  holdBall(); resetTrail(); state.trGlass=false;
-  state.mode='feed'; state.timer=1.0; state.pred=null;
-  const hint=document.getElementById('hint'); hint.hidden=false;
-  hint.innerHTML='<p>La balle va <b>rebondir</b> puis taper votre <b>vitre du fond</b>. Placez-vous sur l\'<b>hexagone cyan</b> et frappez quand elle <b>ressort</b>.</p>';
-  updateScoreHUD();
-}
-function feedBall(){
-  const f=P(1,0), h=ME;
-  ball.held=false; ball.p.set(f.pos.x+0.3, 1.0, f.pos.z+0.4);
-  const lob=Math.random()<0.25, wide=Math.random()<0.3;
-  const tx=Math.sign(h.pos.x||1)*rand(wide?3.3:1.4, wide?4.3:3.4)*K(), tz=rand(lob?7.6:6.8, lob?8.8:8.5);
-  ball.v.copy(solve(ball.p.clone(), tx, tz, lob?1.9:1.05, false));
-  R.lastHitter=1; R.crossed=false; R.bounces=0; R.live=true; R.glass=false; R.isServe=false;
-  state.hitId++; state.tr.n++; swingAnim(f,lob?'lob':'volley');
-  state.mode='rally'; state.planT=0; ME.react=0.1;
-  updateScoreHUD();
-}
-function trainTip(){
-  const tips=['Trop près de la vitre ? Restez à environ 1,5 m d\'elle.','Ne courez pas vers la balle : laissez-la passer puis revenir.','Suivez l\'hexagone cyan : c\'est là que la balle ressort.'];
-  banner('Raté', tips[state.tr.n%tips.length], 1600);
-}
-
 /* ===================== aide ===================== */
 const helpEl=document.getElementById('help'); let helpFrom='menu';
 function showTab(name){
@@ -2106,8 +2056,6 @@ document.getElementById('helpClose').addEventListener('click',closeHelp);
 document.getElementById('helpBtn').addEventListener('click',()=>openHelp());
 document.getElementById('rulesBtn').addEventListener('click',()=>openHelp());
 document.getElementById('pauseRulesBtn').addEventListener('click',()=>openHelp());
-document.getElementById('trainBtn').addEventListener('click',startTraining);
-document.getElementById('helpTrainBtn').addEventListener('click',startTraining);
 document.addEventListener('visibilitychange',()=>{ if(document.hidden && !state.demo && !state.paused && endEl.hidden && !NET.live) togglePause(); });
 
 /* ===================== jeu en ligne entre amis ===================== */
@@ -2136,6 +2084,8 @@ function netErr(e){
   return "Connexion au service de jeu en ligne impossible. Vérifiez votre connexion internet puis réessayez.";
 }
 function lobbyStatus(msg,err){ const el=document.getElementById('lbStatus'); el.textContent=msg; el.classList.toggle('error',!!err); }
+// Salon : un match de démonstration se joue en fond pendant l'attente des amis
+function lobbyWait(){ readSettings(); setLayout(); toMenu(); menuEl.hidden=true; }
 function showLobby(){ lobbyEl.hidden=false; lobbyEl.classList.remove('collapsed'); document.getElementById('lbToggle').setAttribute('aria-expanded','true'); document.body.classList.add('lobby'); document.getElementById('lbName').value=myName(); renderLobby(); }
 function renderLobby(){
   const sp=slotPlayers(), total=sp.length, mine=NET.role==='host'?0:NET.meSlot;
@@ -2163,11 +2113,11 @@ function hideLobby(){ lobbyEl.hidden=true; document.body.classList.remove('lobby
 async function hostRoom(){
   readSettings(); setLayout(); resetNet(true);
   NET.role='host'; NET.code=newCode(); NET.slots=slotPlayers().map((p,i)=>i===0?{name:myName()||'Vous',host:true}:null);
-  startTraining(); showLobby(); lobbyStatus('Création de la partie…');
+  lobbyWait(); showLobby(); lobbyStatus('Création de la partie…');
   try{ await loadPeer(); }catch(e){ return lobbyStatus(netErr(),true); }
   const open=tries=>{
     const peer=new Peer(PEER_PREFIX+NET.code,{debug:0}); NET.peer=peer;
-    peer.on('open',()=>{ renderLobby(); lobbyStatus("Partagez le lien : vos amis rejoignent directement la partie. En attendant, entraînez-vous à la sortie de vitre."); });
+    peer.on('open',()=>{ renderLobby(); lobbyStatus("Partagez le lien : vos amis rejoignent directement la partie."); });
     peer.on('connection',c=>{ c.on('data',m=>hostOnData(c,m)); c.on('close',()=>hostDrop(c)); c.on('error',()=>hostDrop(c)); });
     peer.on('error',e=>{ if(e.type==='unavailable-id' && tries<3){ peer.destroy(); NET.code=newCode(); open(tries+1); } else if(NET.role==='host' && !NET.live) lobbyStatus(netErr(e),true); });
     peer.on('disconnected',()=>{ try{ peer.reconnect(); }catch(_){} });
@@ -2226,7 +2176,7 @@ function showJoin(code){
 async function joinRoom(code){
   resetNet(true); NET.role='guest'; NET.code=code; NET.slots=[];
   joinEl.hidden=true; menuEl.hidden=true;
-  startTraining(); showLobby(); lobbyStatus('Connexion à la partie…');
+  lobbyWait(); showLobby(); lobbyStatus('Connexion à la partie…');
   try{ await loadPeer(); }catch(e){ return lobbyStatus(netErr(),true); }
   const peer=new Peer({debug:0}); NET.peer=peer;
   peer.on('open',()=>{
@@ -2240,7 +2190,7 @@ async function joinRoom(code){
 }
 function guestOnData(m){
   if(!m || typeof m!=='object') return;
-  if(m.t==='welcome'){ clearTimeout(NET.joinTO); NET.meSlot=m.slot; if(m.players!==settings.players){ settings.players=m.players; setLayout(); setupFeed(); } renderLobby(); lobbyStatus("Vous êtes dans la partie. L'hôte va lancer le match : en attendant, entraînez-vous à la sortie de vitre."); }
+  if(m.t==='welcome'){ clearTimeout(NET.joinTO); NET.meSlot=m.slot; if(m.players!==settings.players){ settings.players=m.players; setLayout(); setupPoint(false); } renderLobby(); lobbyStatus("Vous êtes dans la partie. L'hôte va lancer le match."); }
   else if(m.t==='full'){ lobbyStatus('Cette partie est déjà complète.',true); }
   else if(m.t==='lobby'){ NET.slots=m.slots.map(n=>n?{name:n}:null); renderLobby(); }
   else if(m.t==='start'){ guestStart(m); }
@@ -2257,7 +2207,7 @@ function guestStart(m){
   for(const p of ALL) p.ctl='ai';
   ME=slotPlayers()[NET.meSlot]; ME.ctl='local';
   VIEW=ME.team===0?1:-1; applyView(); fitCamera();
-  state.training=false; state.demo=false; state.paused=false; state.mode='serve'; state.aim=null;
+  state.demo=false; state.paused=false; state.mode='serve'; state.aim=null;
   NET.live=true; NET.snap=null; NET.lastS='';
   hideLobby(); menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false; callEl.innerHTML='';
   document.getElementById('hint').hidden=true; document.body.classList.remove('serving');
