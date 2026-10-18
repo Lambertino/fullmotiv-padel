@@ -324,6 +324,7 @@ body.touch #tip{top:calc(150px + env(safe-area-inset-top,0px))}
 .lb-actions .cta{font-size:17px;padding:11px 16px}
 .lb-actions .cta:disabled{opacity:.45;cursor:not-allowed}
 body.lobby #hint{display:none}
+body.practice #score{display:none}
 body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:16px;width:auto;max-height:calc(100% - 84px - 250px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
 @media (max-width:600px){.lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:16px;width:auto}}
 @media (prefers-reduced-motion:reduce){.callout,#banner.show,#hitBtn{animation-duration:.01s}}
@@ -1084,6 +1085,17 @@ const trailMat=new THREE.LineBasicMaterial({color:0xeaff8a,transparent:true,opac
 const trail=new THREE.Line(trailGeo,trailMat); trail.frustumCulled=false; scene.add(trail);
 function resetTrail(){ for(let i=0;i<TRAIL;i++){ trailPos[i*3]=ball.p.x; trailPos[i*3+1]=ball.p.y; trailPos[i*3+2]=ball.p.z; } trailGeo.attributes.position.needsUpdate=true; }
 
+// Lanceur de balles : sert uniquement à patienter dans le salon du jeu en ligne
+const machine=new THREE.Group();
+{ const body=new THREE.Mesh(new THREE.BoxGeometry(0.62,0.5,0.55),mat(0xf2f2ee,{roughness:0.45}));
+  body.position.y=0.42; machine.add(body);
+  const tube=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.11,0.5,16),mat(0xff6f9c,{roughness:0.4}));
+  tube.position.set(0,0.82,0.12); tube.rotation.x=0.9; machine.add(tube);
+  const hop=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.18,0.3,16,1,true),mat(0x0b2b2d,{side:THREE.DoubleSide}));
+  hop.position.set(0,0.82,-0.12); machine.add(hop);
+  for(const sx of [-1,1]){ const w=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.06,14),mat(0x111111)); w.rotation.z=Math.PI/2; w.position.set(sx*0.33,0.1,-0.18); machine.add(w); }
+  machine.traverse(m=>{ if(m.isMesh) m.castShadow=true; }); }
+machine.position.set(0,0,-8.9); machine.scale.setScalar(1.5); machine.visible=false; scene.add(machine);
 const landMark=new THREE.Mesh(new THREE.RingGeometry(0.22,0.3,24),basic(0x9fe3d2,{transparent:true,opacity:0.8,depthWrite:false,side:THREE.DoubleSide}));
 landMark.rotation.x=-Math.PI/2; landMark.position.y=0.015; scene.add(landMark);
 const landMark2=new THREE.Mesh(new THREE.RingGeometry(0.42,0.46,24),landMark.material); landMark2.rotation.x=-Math.PI/2; landMark2.position.y=0.015; scene.add(landMark2);
@@ -1155,7 +1167,7 @@ function simulate(maxT){
 /* ===================== rules ===================== */
 const R={live:false,isServe:true,serveNum:1,server:null,receiver:null,serveRight:true,lastHitter:-1,crossed:false,bounces:0,touchedNet:false,glass:false};
 const S={sets:[],games:[0,0],points:[0,0],tiebreak:false,gameIndex:0,setsWon:[0,0]};
-const state={mode:'idle', cueHit:-1, hitId:0, paused:false, timer:0, tossBounced:false, planT:0, pred:null, pending:null, demo:true};
+const state={mode:'idle', practice:false, cueHit:-1, hitId:0, paused:false, timer:0, tossBounced:false, planT:0, pred:null, pending:null, demo:true};
 
 function inServeBox(x,z){
   const o=1-R.lastHitter; if(sideOf(z)!==o) return false;
@@ -1243,7 +1255,8 @@ function tip(key){
 function win(t,label){ endPoint(t,label); }
 function fault(t,label){ endPoint(1-t,label); }
 function endPoint(w,label){
-  R.live=false; state.mode='over'; state.timer=1.7; state.pending=w;
+  R.live=false; state.mode='over'; state.timer=state.practice?1.0:1.7; state.pending=w;
+  if(state.practice && w===0) label='BIEN JOUÉ !';
   if(label){ callout(label, ball.p, (w===0)?'good':'bad'); tip(label); }
 }
 function serveFault(reason){
@@ -1377,6 +1390,7 @@ function clearsNet(p0,v){
 function partnerDiff(){ return settings.diff==='pro'?'matePro':'mate'; }
 
 function nextAfterPoint(){
+  if(state.practice) return setupFeed();
   const w=state.pending;
   if(w>=0){
     const r=awardPoint(w);
@@ -1624,6 +1638,7 @@ function plan(){
   if(!R.live) return;
   const tm=1-R.lastHitter;
   const team=players.filter(p=>p.team===tm);
+  if(!team.length) return; // échauffement : personne côté lanceur
   for(const pl of team){
     const rt=Math.max(0,pl.react);
     if(pl.cvHit!==state.hitId){ pl.cvHit=state.hitId; pl.wantCV=!pl.human && !R.isServe && Math.random()<CV_RATE; }
@@ -1795,6 +1810,7 @@ function update(dt){
     if(ball.p.lengthSq()>3600){ ball.v.set(0,0,0); ball.held=true; }
   } else if(state.mode==='serve') holdBall();
 
+  if(state.mode==='feed'){ state.timer-=dt; if(state.timer<=0) feedBall(); }
   if(state.mode==='serve' && R.server.ctl!=='local'){ state.timer-=dt; if(state.timer<=0) startServe(R.serveNum===1?(Math.random()<0.3?'smash':'volley'):'lob'); }
   if(state.mode==='rally'){ state.planT-=dt; if(state.planT<=0) plan(); }
   if(state.mode==='over'){ state.timer-=dt; if(state.timer<=0) nextAfterPoint(); }
@@ -1981,14 +1997,12 @@ function loadSettings(){
   }catch(e){}
 }
 // Double ou simple : largeur du terrain, joueurs en jeu, carte du partenaire
-function setLayout(){
-  const single=settings.players==='1v1';
-  if(single===SINGLE && courtG) return;
-  SINGLE=single; CW=single?3:5;
+function setLayout(single=settings.players==='1v1', solo=false){
+  if(single!==SINGLE || !courtG){ SINGLE=single; CW=single?3:5; buildCourt(CW); }
   players.length=0;
-  for(const p of ALL){ const on=!single || p.idx===0; p.parts.g.visible=p.parts.shadow.visible=on; if(on) players.push(p); }
-  buildCourt(CW);
-  document.querySelector('[data-testid=card-partner]').hidden=single;
+  for(const p of ALL){ const on=solo ? p===ME : (!single || p.idx===0); p.parts.g.visible=p.parts.shadow.visible=on; if(on) players.push(p); }
+  machine.visible=solo;
+  document.querySelector('[data-testid=card-partner]').hidden=single||solo;
   document.getElementById('youRole').textContent=single?'SIMPLE':'DRIVE';
   TEAM[0]=single?(myName()||'Vous'):'Roses'; TEAM[1]=single?'Adversaire':'Blancs';
   [0,1].forEach(t=>{ document.getElementById('srv'+t).parentNode.lastChild.textContent=TEAM[t]; });
@@ -2003,7 +2017,7 @@ function applyRoles(){
   }
 }
 function startMatch(){
-  readSettings(); setLayout(); state.aimCount=0; state.lastAim=0; state.demo=false; state.paused=false; resetScore();
+  endPractice(); readSettings(); setLayout(); state.aimCount=0; state.lastAim=0; state.demo=false; state.paused=false; resetScore();
   applyRoles();
   menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false;
   callEl.innerHTML='';
@@ -2011,6 +2025,7 @@ function startMatch(){
   banner(TEAM[0]+' – '+TEAM[1], (SINGLE?'1 contre 1 · ':'')+(settings.format==='quick'?'Match rapide · 1 set':'Match complet · 2 sets gagnants'),1600);
 }
 function toMenu(){
+  endPractice(); setLayout();
   state.demo=true; state.paused=false; applyRoles(); resetScore(); helpEl.hidden=true;
   hudEl.hidden=true; pauseEl.hidden=true; endEl.hidden=true; menuEl.hidden=false; bannerEl.hidden=true; document.getElementById('hint').hidden=true; document.body.classList.remove('serving');
   setupPoint(false);
@@ -2056,7 +2071,7 @@ document.getElementById('helpClose').addEventListener('click',closeHelp);
 document.getElementById('helpBtn').addEventListener('click',()=>openHelp());
 document.getElementById('rulesBtn').addEventListener('click',()=>openHelp());
 document.getElementById('pauseRulesBtn').addEventListener('click',()=>openHelp());
-document.addEventListener('visibilitychange',()=>{ if(document.hidden && !state.demo && !state.paused && endEl.hidden && !NET.live) togglePause(); });
+document.addEventListener('visibilitychange',()=>{ if(document.hidden && !state.demo && !state.practice && !state.paused && endEl.hidden && !NET.live) togglePause(); });
 
 /* ===================== jeu en ligne entre amis ===================== */
 // Connexion directe entre navigateurs (WebRTC via PeerJS et son service public de mise en relation).
@@ -2071,7 +2086,7 @@ function myName(){ if(NAME_MEM!==null) return NAME_MEM; try{ return localStorage
 function saveName(n){ NAME_MEM=n; try{ localStorage.setItem('fullmotiv-name',n); }catch(e){} }
 function newCode(){ const a='ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c=''; for(let i=0;i<5;i++) c+=a[Math.random()*a.length|0]; return c; }
 // ordre des places : l'hôte, puis l'équipe d'en face, puis son partenaire, puis le 2e adversaire
-function slotPlayers(){ return SINGLE?[P(0,0),P(1,0)]:[P(0,0),P(1,0),P(0,1),P(1,1)]; }
+function slotPlayers(){ return settings.players==='1v1'?[P(0,0),P(1,0)]:[P(0,0),P(1,0),P(0,1),P(1,1)]; }
 function inviteUrl(){ return location.origin+location.pathname+'?partie='+NET.code; }
 function netSend(m){ if(NET.hostConn && NET.hostConn.open) NET.hostConn.send(m); }
 function netBroadcast(m){ for(const c of NET.conns.values()) if(c.open) c.send(m); }
@@ -2085,7 +2100,29 @@ function netErr(e){
 }
 function lobbyStatus(msg,err){ const el=document.getElementById('lbStatus'); el.textContent=msg; el.classList.toggle('error',!!err); }
 // Salon : un match de démonstration se joue en fond pendant l'attente des amis
-function lobbyWait(){ readSettings(); setLayout(); toMenu(); menuEl.hidden=true; }
+// Salon : en attendant ses amis, le joueur s'échauffe seul sur un terrain double face à un lanceur de balles
+function lobbyWait(){
+  readSettings(); state.practice=true; state.demo=false; state.paused=false; state.aim=null; resetScore();
+  setLayout(false,true); applyRoles(); document.body.classList.add('practice'); placeFor(ME, 1.6, 7.4);
+  menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; helpEl.hidden=true; hudEl.hidden=false; callEl.innerHTML='';
+  setupFeed();
+}
+function endPractice(){ if(!state.practice) return; state.practice=false; document.body.classList.remove('practice'); }
+function setupFeed(){
+  for(const p of players){ p.queued=null; p.intercept=null; p.assigned=false; p.swing=0; }
+  R.server=ME; R.receiver=null; R.isServe=false; R.live=false; R.crossed=false; R.bounces=0; R.lastHitter=1; R.touchedNet=false; R.glass=false;
+  ball.held=true; ball.v.set(0,0,0); ball.outside=false; ball.rolling=false; ball.netTouched=false; ball.trick=null; ball.kick=0;
+  ball.p.set(0,1.35,-8.6); resetTrail();
+  state.mode='feed'; state.timer=0.9; state.pred=null;
+}
+function feedBall(){
+  const kind=Math.random(), lob=kind<0.2, deep=kind>0.65;
+  const tx=rand(-3.6,3.6), tz=lob?rand(7.6,8.8):deep?rand(7.0,8.6):rand(4.5,7.0);
+  ball.held=false; ball.p.set(0,1.35,-8.6);
+  ball.v.copy(solve(ball.p.clone(), tx, tz, lob?1.9:rand(0.95,1.2), false));
+  R.lastHitter=1; R.crossed=false; R.bounces=0; R.live=true; R.glass=false; R.isServe=false;
+  state.hitId++; state.mode='rally'; state.planT=0; ME.react=0.1;
+}
 function showLobby(){ lobbyEl.hidden=false; lobbyEl.classList.remove('collapsed'); document.getElementById('lbToggle').setAttribute('aria-expanded','true'); document.body.classList.add('lobby'); document.getElementById('lbName').value=myName(); renderLobby(); }
 function renderLobby(){
   const sp=slotPlayers(), total=sp.length, mine=NET.role==='host'?0:NET.meSlot;
@@ -2190,7 +2227,7 @@ async function joinRoom(code){
 }
 function guestOnData(m){
   if(!m || typeof m!=='object') return;
-  if(m.t==='welcome'){ clearTimeout(NET.joinTO); NET.meSlot=m.slot; if(m.players!==settings.players){ settings.players=m.players; setLayout(); setupPoint(false); } renderLobby(); lobbyStatus("Vous êtes dans la partie. L'hôte va lancer le match."); }
+  if(m.t==='welcome'){ clearTimeout(NET.joinTO); NET.meSlot=m.slot; if(m.players!==settings.players) settings.players=m.players; renderLobby(); lobbyStatus("Vous êtes dans la partie. L'hôte va lancer le match."); }
   else if(m.t==='full'){ lobbyStatus('Cette partie est déjà complète.',true); }
   else if(m.t==='lobby'){ NET.slots=m.slots.map(n=>n?{name:n}:null); renderLobby(); }
   else if(m.t==='start'){ guestStart(m); }
@@ -2207,7 +2244,7 @@ function guestStart(m){
   for(const p of ALL) p.ctl='ai';
   ME=slotPlayers()[NET.meSlot]; ME.ctl='local';
   VIEW=ME.team===0?1:-1; applyView(); fitCamera();
-  state.demo=false; state.paused=false; state.mode='serve'; state.aim=null;
+  endPractice(); setLayout(); state.demo=false; state.paused=false; state.mode='serve'; state.aim=null;
   NET.live=true; NET.snap=null; NET.lastS='';
   hideLobby(); menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false; callEl.innerHTML='';
   document.getElementById('hint').hidden=true; document.body.classList.remove('serving');
