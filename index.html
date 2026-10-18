@@ -2107,7 +2107,7 @@ function phLoad(){
   PH='loading';
   import('https://cdn.jsdelivr.net/npm/posthog-js@1.200.0/+esm').then(m=>{
     const ph=m.default;
-    ph.init(PH_KEY,{api_host:'https://eu.i.posthog.com', ip:false, persistence:'memory', autocapture:false, capture_pageview:true, capture_pageleave:true, disable_session_recording:true, person_profiles:'identified_only'});
+    ph.init(PH_KEY,{api_host:'https://eu.i.posthog.com', ip:false, persistence:'memory', autocapture:false, capture_heatmaps:false, capture_dead_clicks:false, capture_performance:false, capture_pageview:true, capture_pageleave:true, disable_session_recording:true, person_profiles:'identified_only'});
     PH=ph; phQueue.splice(0).forEach(a=>ph.capture(...a));
   }).catch(()=>{ PH='off'; });
 }
