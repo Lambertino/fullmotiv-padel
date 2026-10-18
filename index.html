@@ -1426,6 +1426,7 @@ function nextAfterPoint(){
   if(state.practice) return setupFeed();
   const w=state.pending;
   if(w>=0){
+    matchPoint(w);
     const r=awardPoint(w);
     if(r==='match'){ if(state.demo){ resetScore(); } else return matchOver(S.setsWon[0]>S.setsWon[1]?0:1); }
     setupPoint(false);
@@ -2064,6 +2065,7 @@ function startMatch(){
   menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false;
   callEl.innerHTML='';
   setupPoint(false);
+  matchStart(NET.role==='host'?'host':'solo');
   banner(TEAM[0]+' – '+TEAM[1], (SINGLE?'1 contre 1 · ':'')+(settings.format==='quick'?'Match rapide · 1 set':'Match complet · 2 sets gagnants'),1600);
 }
 function toMenu(){
@@ -2079,6 +2081,7 @@ function togglePause(){
   if(state.paused) document.getElementById('resumeBtn').focus();
 }
 function matchOver(w){
+  matchStop('match_end',{won:w===ME.team, sets:S.sets.map(s=>s[0]+'-'+s[1]).join(' ')});
   state.mode='idle'; R.live=false; hudEl.hidden=true; document.getElementById('hint').hidden=true; document.body.classList.remove('serving');
   document.getElementById('endTitle').textContent=SINGLE?(w===0?'Victoire !':'Défaite'):(w===0?'Victoire des Roses':'Victoire des Blancs');
   document.getElementById('endSets').textContent=S.sets.map(s=>s[0]+'-'+s[1]).join('   ');
@@ -2091,9 +2094,46 @@ document.getElementById('pauseBtn').addEventListener('click',togglePause);
 document.getElementById('resumeBtn').addEventListener('click',togglePause);
 document.getElementById('soundBtn').addEventListener('click',()=>{ audioInit(); setSound(!soundOn); });
 setSound(soundOn);
-document.getElementById('quitBtn').addEventListener('click',()=>{ if(NET.role) resetNet(); toMenu(); });
+document.getElementById('quitBtn').addEventListener('click',()=>{ matchStop('match_quit',{where:'pause'}); if(NET.role) resetNet(); toMenu(); });
 document.getElementById('againBtn').addEventListener('click',()=>{ if(NET.role==='host') startNetMatch(); else startMatch(); });
 document.getElementById('menuBtn').addEventListener('click',()=>{ if(NET.role) resetNet(); toMenu(); });
+
+/* ===================== mesure d'audience (PostHog, sans cookie) ===================== */
+// Clé publique du projet PostHog (région UE). Vide = aucune mesure envoyée.
+const PH_KEY='';
+let PH=null; const phQueue=[];
+function phLoad(){
+  if(!PH_KEY || PH || /[?&](og|debug)\b/.test(location.search)) return;
+  PH='loading';
+  import('https://cdn.jsdelivr.net/npm/posthog-js@1.200.0/+esm').then(m=>{
+    const ph=m.default;
+    ph.init(PH_KEY,{api_host:'https://eu.i.posthog.com', ip:false, persistence:'memory', autocapture:false, capture_pageview:true, capture_pageleave:true, disable_session_recording:true, person_profiles:'identified_only'});
+    PH=ph; phQueue.splice(0).forEach(a=>ph.capture(...a));
+  }).catch(()=>{ PH='off'; });
+}
+// Aucun prénom ni donnée personnelle : uniquement des compteurs de jeu
+function track(ev,props,beacon){
+  if(!PH_KEY || PH==='off') return;
+  const a=[ev,props||{},beacon?{transport:'sendBeacon'}:undefined];
+  if(PH && PH!=='loading') PH.capture(...a); else { phQueue.push(a); phLoad(); }
+}
+const LEVEL={easy:'1/2/3',normal:'4/5/6',pro:'7/8'};
+let M=null; // match en cours : début, points joués et gagnés
+function matchStart(mode){
+  M={t0:performance.now(), pts:0, won:0, first:false, mode};
+  track('match_start',{mode, court:settings.players, level:LEVEL[settings.diff], format:settings.format, golden:settings.golden, friends:NET.role==='host'?NET.slots.filter(Boolean).length-1:0});
+}
+function matchPoint(w){
+  if(!M) return; M.pts++;
+  if(w===ME.team){ M.won++; if(!M.first){ M.first=true; track('first_point_won',{mode:M.mode, sec:Math.round((performance.now()-M.t0)/1000), points_played:M.pts}); } }
+}
+function matchStop(ev,extra,beacon){
+  if(!M) return;
+  track(ev,Object.assign({mode:M.mode, court:settings.players, level:LEVEL[settings.diff], sec:Math.round((performance.now()-M.t0)/1000), points_played:M.pts, points_won:M.won},extra),beacon);
+  M=null;
+}
+addEventListener('pagehide',()=>matchStop('match_quit',{where:'tab'},true));
+addEventListener('load',()=>setTimeout(phLoad,1500));
 
 /* ===================== aide ===================== */
 const helpEl=document.getElementById('help'); let helpFrom='menu';
@@ -2103,6 +2143,7 @@ function showTab(name){
   try{ localStorage.setItem('fullmotiv-help-tab',name); }catch(e){}
 }
 function openHelp(tab){
+  track('help_open',{from:menuEl.hidden?'game':'menu'});
   if(!menuEl.hidden) helpFrom='menu';
   else { helpFrom='pause'; if(!state.paused){ state.paused=true; } }
   menuEl.hidden=true; pauseEl.hidden=true; helpEl.hidden=false; helpEl.scrollTop=0;
@@ -2192,6 +2233,7 @@ function hideLobby(){ lobbyEl.hidden=true; document.body.classList.remove('lobby
 
 // ----- hôte -----
 async function hostRoom(){
+  track('lobby_open',{role:'host'});
   readSettings(); setLayout(); resetNet(true);
   NET.role='host'; NET.code=newCode(); NET.slots=slotPlayers().map((p,i)=>i===0?{name:myName()||'Vous',host:true}:null);
   lobbyWait(); showLobby(); lobbyStatus('Création de la partie…');
@@ -2213,7 +2255,7 @@ function hostOnData(c,m){
     const name=cleanName(m.name)||('Joueur '+(free+1));
     NET.slots[free]={name,id:c.peer}; NET.conns.set(c.peer,c); c.slot=free;
     c.send({t:'welcome',slot:free,players:settings.players});
-    lobbyBroadcast(); banner(name+' a rejoint','',1500);
+    lobbyBroadcast(); banner(name+' a rejoint','',1500); track('friend_joined',{friends:NET.slots.filter(Boolean).length-1, live:NET.live});
     if(NET.live){ const pl=slotPlayers()[free]; pl.ctl='remote'; pl.inp.x=pl.inp.z=0; applyRoles(); c.send(startMsg()); } // arrivée en cours de match : remplace l'IA
     return;
   }
@@ -2255,6 +2297,7 @@ function showJoin(code){
   const n=document.getElementById('joinName'); n.value=myName(); setTimeout(()=>n.focus(),50);
 }
 async function joinRoom(code){
+  track('lobby_open',{role:'guest'});
   resetNet(true); NET.role='guest'; NET.code=code; NET.slots=[];
   joinEl.hidden=true; menuEl.hidden=true;
   lobbyWait(); showLobby(); lobbyStatus('Connexion à la partie…');
@@ -2295,6 +2338,7 @@ function guestStart(m){
   document.getElementById('hint').hidden=true; document.body.classList.remove('serving');
   resetScore(); updateScoreHUD(); setCardNames();
   banner(SINGLE?'Vous – Adversaire':'Roses – Blancs','Partie entre amis',1600);
+  matchStart('guest');
 }
 function guestUpdate(dt){
   const sn=NET.snap;
@@ -2321,6 +2365,7 @@ function guestUpdate(dt){
   updateVisuals(dt);
 }
 function guestEnd(m){
+  matchStop('match_end',{won:m.w===ME.team, sets:(m.sets||[]).map(s=>ME.team===0?s[0]+'-'+s[1]:s[1]+'-'+s[0]).join(' ')});
   state.mode='idle'; hudEl.hidden=true; document.getElementById('hint').hidden=true; document.body.classList.remove('serving');
   document.getElementById('endTitle').textContent=m.w===ME.team?'Victoire !':'Défaite';
   document.getElementById('endSets').textContent=(m.sets||[]).map(s=>ME.team===0?s[0]+'-'+s[1]:s[1]+'-'+s[0]).join('   ');
@@ -2328,7 +2373,7 @@ function guestEnd(m){
   document.getElementById('againBtn').hidden=true; document.getElementById('menuBtn').textContent='Quitter la partie';
   endEl.hidden=false;
 }
-function guestHostLeft(){
+function guestHostLeft(){ matchStop('match_quit',{where:'host_left'});
   if(NET.role!=='guest') return;
   const wasLive=NET.live; resetNet();
   if(!wasLive && !lobbyEl.hidden){ showLobby(); lobbyStatus("L'hôte a fermé la partie.",true); return; }
