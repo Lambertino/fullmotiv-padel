@@ -1150,8 +1150,6 @@ function play(k,o={}){
   if(k==='hit'){ noiseHit(t,'bandpass',1700,1.2,0.5*v,0.05); tone(t,190,85,0.45*v,0.07,'triangle'); }
   else if(k==='bounce'){ tone(t,130,60,0.28,0.08); noiseHit(t,'lowpass',700,0.7,0.08,0.05); }
   else if(k==='glass'){ noiseHit(t,'bandpass',950,5,0.32,0.16); tone(t,330,250,0.16,0.22); }
-  else if(k==='mesh'){ const g=noiseHit(t,'highpass',2600,0.8,0.22,0.24); const lfo=AC.createOscillator(); lfo.type='square'; lfo.frequency.value=38; const lg=AC.createGain(); lg.gain.value=0.5; lfo.connect(lg).connect(g.gain); lfo.start(t); lfo.stop(t+0.3); }
-  else if(k==='net'){ noiseHit(t,'lowpass',420,0.8,0.25,0.12); }
   else if(k==='cheer'){ const mine=ME && o.w===ME.team; noiseHit(t,'bandpass',1150,0.6,mine?0.2:0.08,mine?1.5:0.8,0.25); }
 }
 function buzz(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} } // Android ; iOS Safari ne donne pas accès au vibreur
@@ -1232,7 +1230,7 @@ function inServeBox(x,z){
   return tsx>0 ? x>-BR : x<BR;
 }
 function onBallEvent(type,d){
-  if(state.mode!=='idle'){ if(type==='floor') sfx('bounce'); else if(type==='wall') sfx(d.kind==='glass'?'glass':'mesh'); else if(type==='net') sfx('net'); }
+  if(state.mode!=='idle'){ if(type==='floor') sfx('bounce'); else if(type==='wall' && d.kind==='glass') sfx('glass'); } // grillage et filet : pas de son (synthèse peu réaliste)
   if(type==='wall' && d.kind==='glass' && state.mode!=='idle') ripple(d.x,d.y,d.z,d.wall);
   if(!R.live) return;
   const T=R.lastHitter, O=1-T;
