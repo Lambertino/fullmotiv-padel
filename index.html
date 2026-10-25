@@ -930,7 +930,7 @@ function buildArena(){
   const o=new THREE.Object3D(), c=new THREE.Color();
   people.forEach((p,i)=>{ o.position.set(p[0],p[1]+0.28,p[2]); o.rotation.set(0,p[3]?-p[3]*Math.PI/2:0,0); o.updateMatrix(); bodies.setMatrixAt(i,o.matrix); c.setHex(pal[(Math.random()*pal.length)|0]).multiplyScalar(0.75); bodies.setColorAt(i,c);
     o.position.y=p[1]+0.68; o.updateMatrix(); heads.setMatrixAt(i,o.matrix); c.setHex(skins[(Math.random()*skins.length)|0]).multiplyScalar(0.7); heads.setColorAt(i,c); });
-  scene.add(bodies, heads);
+  scene.add(bodies, heads); CROWD.push(bodies, heads);
   // sièges sous chaque spectateur (deux maillages instanciés : assise + dossier)
   const seatM=mat(0x1b2b2a,{roughness:0.5}), seats=new THREE.InstancedMesh(new THREE.BoxGeometry(0.46,0.1,0.42),seatM,people.length), backs=new THREE.InstancedMesh(new THREE.BoxGeometry(0.46,0.42,0.06),seatM,people.length);
   people.forEach((p,i)=>{ const ry=p[3]?-p[3]*Math.PI/2:0; o.rotation.set(0,ry,0);
@@ -1095,6 +1095,7 @@ function makePlayer(team, idx, name, colors, human){
 }
 
 /* ===================== ball & fx ===================== */
+const CROWD=[]; // public (maillages instanciés) : il se lève sur les points spectaculaires
 const ball={p:new V3(0,1,0), v:new V3(), outside:false, netTouched:false, rolling:false, held:true};
 const ballMesh=new THREE.Mesh(new THREE.SphereGeometry(0.095,24,16),mat(0xd9ff3c,{emissive:0x3a4a00,emissiveIntensity:0.7,roughness:0.75})); ballMesh.castShadow=true;
 scene.add(ballMesh);
@@ -1127,6 +1128,9 @@ const youRing=new THREE.Mesh(new THREE.RingGeometry(0.5,0.6,28),basic(0xff6f9c,{
 youRing.rotation.x=-Math.PI/2; youRing.position.y=0.018; scene.add(youRing);
 const targetMark=new THREE.Mesh(new THREE.RingGeometry(0.3,0.38,6),basic(0xff6f9c,{transparent:true,opacity:0.6,depthWrite:false,side:THREE.DoubleSide}));
 targetMark.rotation.x=-Math.PI/2; targetMark.position.y=0.02; scene.add(targetMark);
+// remplissage de l'hexagone : se remplit à l'approche de la balle, vire au vert-jaune quand c'est le moment idéal pour frapper
+const targetFill=new THREE.Mesh(new THREE.CircleGeometry(0.3,6),basic(0xff6f9c,{transparent:true,opacity:0.35,depthWrite:false,side:THREE.DoubleSide}));
+targetFill.position.z=0.002; targetMark.add(targetFill);
 
 const ripples=[];
 for(let i=0;i<6;i++){ const r=new THREE.Mesh(new THREE.RingGeometry(0.15,0.24,6),basic(0xff9fbe,{transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending})); r.visible=false; scene.add(r); ripples.push({m:r,t:0}); }
@@ -1345,14 +1349,15 @@ function awardPoint(t){
   if(S.tiebreak){ if(S.points[t]>=7 && S.points[t]-S.points[o]>=2) gw=true; else if((S.points[0]+S.points[1])%6===0) banner('Changement de côté','Tie-break · '+S.points[0]+'-'+S.points[1],1500); }
   else if(settings.golden ? S.points[t]>=4 : (S.points[t]>=4 && S.points[t]-S.points[o]>=2)) gw=true;
   if(!gw) return false;
-  S.games[t]++; S.points=[0,0]; S.gameIndex++;
+  const tbPts=S.points.slice(); S.games[t]++; S.points=[0,0]; S.gameIndex++;
   const G6=settings.format==='quick'?4:6, gs=S.games[0]+S.games[1];
   let setWon=false;
   if(S.tiebreak) setWon=true;
   else if(S.games[t]>=G6 && S.games[t]-S.games[o]>=2) setWon=true;
   else if(S.games[0]===G6 && S.games[1]===G6) S.tiebreak=true;
   if(setWon){
-    S.sets.push(S.games.slice()); S.setsWon[t]++; S.tiebreak=false; S.games=[0,0];
+    S.sets.push(S.tbOnly?tbPts:S.games.slice()); S.setsWon[t]++; S.tiebreak=false; S.games=[0,0];
+    if(S.tbOnly) return 'match';
     if(S.setsWon[t]>=(settings.format==='quick'?1:2)) return 'match';
     banner('Set '+TEAM[t], S.sets.map(s=>s[0]+'-'+s[1]).join('  ')+(gs%2?' · Changement de côté':''),2000);
   } else {
@@ -1549,12 +1554,12 @@ function doHit(pl,type,q,trick,forceCV){
     const near=Math.abs(p0.z)<4.5;
     tz=od*(near?rand(4.8,8.4):rand(5.8,8.7));
     if(!cv && !volley && Math.random()<0.28){ doubleVitre=true; aimX=-(Math.sign(p0.x)||1)*(CW-0.6); tz=od*rand(5.8,7.2); } // toujours croisé pour toucher la vitre latérale
-    const dist=Math.hypot(aimX-p0.x,tz-p0.z), sp=(near?15.5:14)*(0.94+q*0.1);
+    const dist=Math.hypot(aimX-p0.x,tz-p0.z), sp=(near?15.5:14)*(0.94+q*0.1)*(state.perfect?1.1:1);
     T=dist/sp;
   }
   let sigma, netErr;
-  if(pl.human){ sigma=0.28+(1-q)*1.25; netErr=Math.random()<(1-q)*0.18; }
-  else { const d=DIFF[t===0?partnerDiff():settings.diff]; sigma=d.err*(0.55+(1-q)); if(Math.random()<d.bad) sigma*=2.6; netErr=Math.random()<d.bad*0.35; }
+  if(pl.human){ sigma=0.28+(1-q)*1.25; netErr=Math.random()<(1-q)*0.18; if(state.perfect){ sigma*=0.5; netErr=false; } }
+  else { const d=DIFF[t===0?partnerDiff():settings.diff], cu=catchUp(t); sigma=d.err*(0.55+(1-q))*cu; if(Math.random()<d.bad*cu) sigma*=2.6; netErr=Math.random()<d.bad*0.35*cu; }
   if(eff==='smash') sigma*=1.25;
   if(doubleVitre) sigma*=0.6;
   const xl=CW-(doubleVitre?0.55:0.7); let tx=clamp(aimX,-xl,xl)+gauss()*sigma;
@@ -1567,7 +1572,9 @@ function doHit(pl,type,q,trick,forceCV){
   const wasServeReturn=R.isServe;
   R.lastHitter=t; R.crossed=false; R.bounces=0; R.touchedNet=false; R.isServe=false; R.glass=false; R.gh=0; R.gw='';
   swingAnim(pl, eff==='smash'||eff==='bandeja'?'smash':eff==='contre'?'lob':eff);
-  sfx('hit',{pl:ALL.indexOf(pl),v:eff==='smash'?1:eff==='lob'||eff==='contre'?0.55:0.75});
+  if(state.perfect){ callout('PARFAIT !',p0,'good'); feel(0.06,0); }
+  else if(eff==='smash' && pl.human) feel(0.05,0.12);
+  sfx('hit',{pl:ALL.indexOf(pl),v:state.perfect?1:eff==='smash'?1:eff==='lob'||eff==='contre'?0.55:0.75});
   if(eff==='contre'){ pl.faceBack=0.5; callout('CONTRE-VITRE !',p0,pl.team===0?'good':'info'); tip('contre'); }
   state.planT=0;
   for(const p of opps) p.react=DIFF[o===0?partnerDiff():settings.diff].react;
@@ -1591,6 +1598,14 @@ function quality(pl){
   return q;
 }
 // Frappe du joueur : un smash près du filet ouvre parfois le smash ciblé (ralenti + choix de trajectoire)
+// Équipe IA face à des humains menés au score : un peu plus d'erreurs, sans rien afficher (1 = normal)
+function catchUp(t){
+  const h=1-t;
+  if(state.demo || players.some(p=>p.team===t && p.human) || !players.some(p=>p.team===h && p.human)) return 1;
+  const gd=(S.setsWon[t]-S.setsWon[h])*3+S.games[t]-S.games[h], pd=S.points[t]-S.points[h];
+  const nothing=S.setsWon[h]+S.games[h]+S.points[h]===0 && S.games[t]+S.points[t]>=2; // le joueur n'a encore rien marqué
+  return Math.min(1.9, 1+0.22*Math.max(0,gd)+(pd>=2?0.15:0)+(nothing?0.3:0));
+}
 function humanHit(pl,type,q){
   if(type==='smash' && pl.ctl==='local' && !state.demo && ball.p.y>2.0 && Math.abs(ball.p.z)<6.2){
     const now=performance.now()/1000;
@@ -1656,7 +1671,7 @@ function aiShot(pl){
   if(y>2.0){
     type='smash';
     // smash gagnant : près du filet, l'IA tente de faire sortir la balle de la cage ; une part reste dans le terrain
-    if(Math.abs(ball.p.z)<6.2 && Math.random()<(DIFF[pl.team===0?partnerDiff():settings.diff].kill||0)){
+    if(Math.abs(ball.p.z)<6.2 && Math.random()<(DIFF[pl.team===0?partnerDiff():settings.diff].kill||0)/catchUp(pl.team)){
       const tr=solveTrick(ball.p.clone(),pl.team,Math.random()<0.5?'por3':'por4');
       if(tr){ const t={...tr, ok:true}; if(Math.random()<0.3){ t.kick=1+(tr.kick-1)*0.45; t.ok=false; } return doHit(pl,'smash',rand(0.7,1),t); }
     }
@@ -1819,7 +1834,7 @@ function queueShot(type,win){
 function queueShotFor(pl,type,win){
   if(state.mode==='serve' && R.server===pl){ startServe(type); return; }
   if(state.mode!=='rally') return;
-  pl.queued={type,t:win||DIFF[settings.diff].win||0.42};
+  pl.queued={type,t:win||DIFF[settings.diff].win||0.42,at:performance.now()};
 }
 
 /* ===================== HUD ===================== */
@@ -1827,6 +1842,7 @@ const callEl=document.getElementById('callouts');
 const _v=new V3();
 function callout(text,pos,cls){
   if(state.demo) return;
+  if(/^POR|PORTE/.test(text)){ feel(0.08,0.3); state.crowd=1.4; } else if(/DOUBLE VITRE|CONTRE-VITRE/.test(text)) state.crowd=Math.max(state.crowd||0,0.8);
   if(NET.role==='host' && NET.live) netBroadcast({t:'c',text,x:r3(pos.x),y:r3(pos.y),z:r3(pos.z),cls});
   _v.copy(pos).project(camera);
   const el=document.createElement('div'); el.className='callout '+(cls||'');
@@ -1864,7 +1880,10 @@ function updateScoreHUD(){
 
 /* ===================== update ===================== */
 function tossEvent(type){ if(type==='floor'){ state.tossBounced=true; sfx('bounce'); } }
+// Ressenti des grands coups : arrêt sur image (s) et secousse de caméra (intensité)
+function feel(stop,shake){ state.hitStop=Math.max(state.hitStop||0,stop); state.shake=Math.max(state.shake||0,shake); }
 function update(dt){
+  if(state.hitStop>0){ state.hitStop-=dt; updateVisuals(0); return; }
   if(state.aim){ updateAim(dt); updateVisuals(0); return; } // ralenti du smash ciblé : le jeu est figé
   // ball
   if(!ball.held){
@@ -1912,7 +1931,11 @@ function updatePlayers(dt){
       const d=Math.hypot(ball.p.x-pl.pos.x,ball.p.z-pl.pos.z), y=ball.p.y;
       if(pl.human){
         // aucune frappe automatique : le coup ne part que si le joueur a appuyé
-        if(d<pl.reach && y>0.14 && y<2.9 && pl.queued){ humanHit(pl,pl.queued.type,quality(pl)); pl.queued=null; }
+        if(d<pl.reach && y>0.14 && y<2.9 && pl.queued){
+          // frappe parfaite : appui juste avant le contact, balle près du corps et à bonne hauteur
+          state.perfect = performance.now()-pl.queued.at<170 && d<0.8 && y>0.35 && y<2.5;
+          humanHit(pl,pl.queued.type,state.perfect?1:quality(pl)); state.perfect=false; pl.queued=null;
+        }
         else if(d<pl.reach && contreVitreChance(pl)===1) tip('contre'); // la balle file dans son dos : on lui apprend le contre-vitre (une fois, entre deux points)
       } else if(d<pl.reach && y>0.24 && y<2.85 && (ball.v.y<1.5 || y>0.8) && !(ball.trick && !R.glass) && !(pl.wantCV && ball.v.z*teamDir(pl.team)>0 && ball.p.z*teamDir(pl.team)<8.0)){ aiShot(pl); } // en contre-vitre, l'IA attend que la balle arrive près de sa vitre // un POR 3 / POR 4 réussi est injouable ; raté (il touche une vitre), il redevient jouable
     }
@@ -1967,6 +1990,8 @@ function updateVisuals(dt){
   trailPos.copyWithin(3,0,(TRAIL-1)*3); trailPos[0]=ball.p.x; trailPos[1]=ball.p.y; trailPos[2]=ball.p.z;
   trailGeo.attributes.position.needsUpdate=true;
   trail.visible=!ball.held && state.mode!=='toss';
+  { const k=clamp((ball.v.length()-12)/12,0,1); trailMat.color.setRGB(0.92+0.08*k,1-0.56*k,0.54+0.07*k); trailMat.opacity=0.45+0.4*k; } // traînée plus vive avec la puissance
+  if(state.crowd>0){ state.crowd-=dt; } for(const m of CROWD) m.position.y=state.crowd>0?Math.abs(Math.sin(state.crowd*13))*0.13:0;
   // landing prediction
   const f=state.pred&&state.pred.first;
   const showLand=state.mode==='rally' && R.live && !R.crossed && f && !state.demo;
@@ -1979,6 +2004,10 @@ function updateVisuals(dt){
   if(targetMark.visible && R.lastHitter!==h.team) tip('incoming');
   if(targetMark.visible){ targetMark.position.set(ti.x,0.02,ti.z); targetMark.rotation.z+=dt*2;
     targetMark.material.color.setHex(ti.g?0x9fe3d2:0xff6f9c);
+    const dx=ball.p.x-h.pos.x, dz=ball.p.z-h.pos.z, dist=Math.hypot(dx,dz), hv=Math.max(2,Math.hypot(ball.v.x,ball.v.z));
+    const now=R.lastHitter!==h.team && dist<0.8 && ball.p.y>0.35 && ball.p.y<2.5 && canHit(h);
+    const fill=R.lastHitter===h.team?0:now?1:clamp(1-dist/hv/1.2,0,0.85);
+    targetFill.scale.setScalar(Math.max(0.01,fill)); targetFill.material.color.setHex(now?0xd9ff3c:ti.g?0x9fe3d2:0xff6f9c); targetFill.material.opacity=now?0.75:0.35;
     if(ti.g && state.cueHit!==state.hitId){ state.cueHit=state.hitId; tip('glass'); } }
   updateSuggest();
   const yt=document.getElementById('youTag');
@@ -2048,7 +2077,7 @@ window.addEventListener('resize',()=>{ fitCamera(); if(document.body.classList.c
 
 /* ===================== menus ===================== */
 const menuEl=document.getElementById('menu'), hudEl=document.getElementById('hud'), pauseEl=document.getElementById('pause'), endEl=document.getElementById('end');
-function resetScore(){ S.sets=[]; S.games=[0,0]; S.points=[0,0]; S.tiebreak=false; S.gameIndex=0; S.setsWon=[0,0]; }
+function resetScore(){ S.sets=[]; S.games=[0,0]; S.points=[0,0]; S.tiebreak=false; S.tbOnly=false; S.gameIndex=0; S.setsWon=[0,0]; }
 function readSettings(){
   settings.players=document.querySelector('input[name=players]:checked').value;
   settings.format=document.querySelector('input[name=format]:checked').value;
@@ -2088,8 +2117,10 @@ function startMatch(){
   menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false;
   callEl.innerHTML='';
   setupPoint(false);
+  let first=false; try{ first=NET.role!=='host' && !localStorage.getItem('fullmotiv-played'); localStorage.setItem('fullmotiv-played','1'); }catch(e){}
+  if(first){ S.tiebreak=true; S.tbOnly=true; updateScoreHUD(); } // première partie sur l'appareil : courte, pour marquer vite
   matchStart(NET.role==='host'?'host':'solo');
-  banner(TEAM[0]+' – '+TEAM[1], (SINGLE?'1 contre 1 · ':'')+(settings.format==='quick'?'Match rapide · 1 set':'Match complet · 2 sets gagnants'),1600);
+  banner(TEAM[0]+' – '+TEAM[1], (SINGLE?'1 contre 1 · ':'')+(first?'Premier match · tie-break en 7 points':settings.format==='quick'?'Match rapide · 1 set':'Match complet · 2 sets gagnants'),1800);
 }
 function toMenu(){
   endPractice(); setLayout();
@@ -2152,7 +2183,7 @@ let M=null, M_bg=null, hiddenAt=0; // match en cours : début, points joués et 
 function matchStart(mode){
   M_bg=null;
   M={t0:performance.now(), pts:0, won:0, first:false, mode};
-  track('match_start',{mode, court:settings.players, level:LEVEL[settings.diff], format:settings.format, golden:settings.golden, quality:Q, friends:NET.role==='host'?NET.slots.filter(Boolean).length-1:0});
+  track('match_start',{mode, court:settings.players, level:LEVEL[settings.diff], format:S.tbOnly?'tiebreak':settings.format, golden:settings.golden, quality:Q, friends:NET.role==='host'?NET.slots.filter(Boolean).length-1:0});
 }
 function matchPoint(w){
   if(!M) return; M.pts++;
@@ -2480,7 +2511,10 @@ function frame(now){
   else if(!state.paused && state.mode!=='idle') update(dt);
   else if(state.mode==='idle') updateVisuals(dt);
   if(NET.role==='host' && NET.live && now-NET.sentAt>50){ NET.sentAt=now; netBroadcast(snapshot()); }
+  let ox=0, oy=0;
+  if(state.shake>0){ state.shake=Math.max(0,state.shake-dt); const a=state.shake*0.5; ox=(Math.random()-0.5)*a; oy=(Math.random()-0.5)*a; camera.position.x+=ox; camera.position.y+=oy; }
   draw();
+  camera.position.x-=ox; camera.position.y-=oy;
 }
 async function boot(){
   try{ await Promise.race([Promise.all([document.fonts.load('800 40px "Saira Condensed"'),document.fonts.load('600 20px "Saira"')]),new Promise(r=>setTimeout(r,1800))]); }catch(e){}
