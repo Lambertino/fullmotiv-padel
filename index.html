@@ -657,7 +657,6 @@ const DIFF = {
 /* ===================== renderer ===================== */
 const stage = document.getElementById('stage');
 const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 // rendu « moderne » : matériaux physiques, reflets d'environnement, vraies ombres portées
 // tone mapping « Neutral » : gère les hautes lumières sans désaturer les couleurs de la marque
 renderer.toneMapping=THREE.NeutralToneMapping; renderer.toneMappingExposure=1.0;
@@ -681,8 +680,14 @@ const rim = new THREE.DirectionalLight(0xff9fbe, 1.1); rim.position.set(-8, 6, -
 // éclairage d'ambiance par environnement (studio fourni par Three.js, aucun fichier à télécharger)
 { const pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture; scene.environmentIntensity=0.45; pm.dispose(); }
 // effets d'image sur ordinateur : ombres de contact (GTAO) et léger halo des projecteurs ; rendu direct sur mobile
+// Qualité graphique adaptative : 3 = effets complets, 2 = rendu direct, 1 = moins de pixels et d'ombre, 0 = sans ombres portées.
+// Elle démarre selon l'appareil et baisse toute seule si les images ne suivent pas ; le niveau atteint est mémorisé.
+let Q=LOW_GPU?2:3;
+try{ const gl=renderer.getContext(), ext=gl.getExtension('WEBGL_debug_renderer_info'), gpu=ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):'';
+  if(/Intel|SwiftShader|llvmpipe|Software/i.test(gpu)) Q=Math.min(Q,2); }catch(e){}
+try{ const q=+localStorage.getItem('fullmotiv-q'); if(localStorage.getItem('fullmotiv-q')!==null && q>=0 && q<Q) Q=q; }catch(e){}
 let composer=null;
-if(!LOW_GPU){
+if(Q>=3){
   const rt=new THREE.WebGLRenderTarget(1,1,{samples:4,type:THREE.HalfFloatType});
   composer=new EffectComposer(renderer,rt);
   composer.addPass(new RenderPass(scene,camera));
@@ -690,7 +695,26 @@ if(!LOW_GPU){
   composer.addPass(new UnrealBloomPass(new THREE.Vector2(1,1),0.22,0.5,1.0));
   composer.addPass(new OutputPass());
 }
-function draw(){ if(composer) composer.render(); else renderer.render(scene,camera); }
+function draw(){ if(composer && Q>=3) composer.render(); else renderer.render(scene,camera); }
+function pixelRatio(){ const d=window.devicePixelRatio||1; return Q>=3?Math.min(d,1.5):Q===2?Math.min(d,LOW_GPU?2:1.5):Q===1?Math.min(d,1):Math.min(d,0.8); }
+function applyQuality(){
+  renderer.setPixelRatio(pixelRatio());
+  const sz=Q>=2?(LOW_GPU?1024:2048):1024;
+  if(sun.shadow.mapSize.x!==sz){ sun.shadow.mapSize.set(sz,sz); if(sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map=null; } }
+  const sh=Q>=1;
+  if(renderer.shadowMap.enabled!==sh){ renderer.shadowMap.enabled=sh; scene.traverse(o=>{ if(o.material) [].concat(o.material).forEach(m=>m.needsUpdate=true); }); }
+  fitCamera();
+}
+// Mesure en jeu : moyenne sur ~1,5 s ; sous ~40 images/s, un cran de qualité en moins
+const perf={n:0,sum:0,wait:2};
+function watchPerf(ms){
+  if(Q<=0 || state.mode==='idle' || state.paused || ms>250) return;
+  if(perf.wait>0){ perf.wait-=ms/1000; return; }
+  perf.n++; perf.sum+=ms;
+  if(perf.n<90) return;
+  const avg=perf.sum/perf.n; perf.n=0; perf.sum=0;
+  if(avg>25){ Q--; perf.wait=1.5; try{ localStorage.setItem('fullmotiv-q',String(Q)); }catch(e){} applyQuality(); }
+}
 
 const mat = (c, o) => new THREE.MeshStandardMaterial(Object.assign({color:c, roughness:0.6, metalness:0.02}, o||{}));
 const basic = (c, o) => new THREE.MeshBasicMaterial(Object.assign({color:c}, o||{}));
@@ -2004,7 +2028,8 @@ function updateSuggest(){
 function fitCamera(){
   const w=stage.clientWidth||innerWidth, h=stage.clientHeight||innerHeight;
   renderer.setSize(w,h,false);
-  if(composer){ composer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5)); composer.setSize(w,h); }
+  renderer.setPixelRatio(pixelRatio());
+  if(composer && Q>=3){ composer.setPixelRatio(pixelRatio()); composer.setSize(w,h); }
   // réserve une bande en bas pour le HUD : le terrain est cadré au-dessus
   const reserve=Math.round(Math.min(h*0.24,(w/h)<0.8?20:(w/h)<1.2?175:70)), hv=h-reserve; // portrait : le terrain descend vers les commandes
   const a=w/hv; camera.aspect=a;
@@ -2121,7 +2146,7 @@ const LEVEL={easy:'1/2/3',normal:'4/5/6',pro:'7/8'};
 let M=null; // match en cours : début, points joués et gagnés
 function matchStart(mode){
   M={t0:performance.now(), pts:0, won:0, first:false, mode};
-  track('match_start',{mode, court:settings.players, level:LEVEL[settings.diff], format:settings.format, golden:settings.golden, friends:NET.role==='host'?NET.slots.filter(Boolean).length-1:0});
+  track('match_start',{mode, court:settings.players, level:LEVEL[settings.diff], format:settings.format, golden:settings.golden, quality:Q, friends:NET.role==='host'?NET.slots.filter(Boolean).length-1:0});
 }
 function matchPoint(w){
   if(!M) return; M.pts++;
@@ -2435,7 +2460,8 @@ document.getElementById('joinSolo').addEventListener('click',()=>{ history.repla
 let last=performance.now();
 function frame(now){
   requestAnimationFrame(frame);
-  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  const ms=now-last; last=now; watchPerf(ms);
+  const dt=Math.min(0.1,ms/1000); // jusqu'à 10 images/s, le jeu garde sa vitesse réelle au lieu de ralentir
   if(NET.role==='guest' && NET.live){ if(state.mode!=='idle') guestUpdate(dt); }
   else if(!state.paused && state.mode!=='idle') update(dt);
   else if(state.mode==='idle') updateVisuals(dt);
@@ -2458,7 +2484,7 @@ async function boot(){
   if(/[?&]debug\b/.test(location.search)) window.__fm={NET,state,S,R,ball,ALL,players,update,guestUpdate,snapshot,get ME(){return ME;},get VIEW(){return VIEW;}};
   const invite=new URLSearchParams(location.search).get('partie');
   if(invite && /^[A-Z0-9]{5}$/i.test(invite)) showJoin(invite.toUpperCase());
-  fitCamera(); applyRoles();
+  applyQuality(); applyRoles();
   setupPoint(false);
   requestAnimationFrame(frame);
 }
