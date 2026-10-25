@@ -648,7 +648,7 @@ const ballScale=()=>state.demo?1:(DIFF[settings.diff].ballScale||1); // la balle
 // easy/normal/pro : adversaires. mate/matePro : votre partenaire, qui garde son niveau pour ne pas vous handicaper.
 const DIFF = {
   easy:  {speed:3.8, err:1.05, react:0.34, bad:0.16, ballScale:0.68, reach:0.25, win:0.65, kill:0.15}, // kill : part des smashs au filet que l'IA tente de faire sortir (por 3 / por 4) // reach/win : portée en plus et durée de prise en compte de l'appui du joueur
-  normal:{speed:4.2, err:0.85, react:0.27, bad:0.12, ballScale:0.9, reach:0.1, win:0.5, kill:0.3},
+  normal:{speed:4.0, err:0.95, react:0.3, bad:0.14, ballScale:0.88, reach:0.12, win:0.52, kill:0.25},
   pro:   {speed:4.9, err:0.56, react:0.18, bad:0.065, ballScale:0.95, reach:0, win:0.42, kill:0.45},
   mate:   {speed:4.6, err:0.72, react:0.22, bad:0.09, kill:0.3},
   matePro:{speed:5.3, err:0.45, react:0.14, bad:0.045, kill:0.45}
@@ -2127,8 +2127,15 @@ document.getElementById('menuBtn').addEventListener('click',()=>{ if(NET.role) r
 // Clé publique du projet PostHog (région UE). Vide = aucune mesure envoyée.
 const PH_KEY='phc_oHwBN2gfue7N3zdsWbrLqRLRYfbuFHgfZhPgkMH7qT2R'; // projet 310782, EU Cloud
 let PH=null; const phQueue=[];
+// ?interne sur un appareil = ses parties ne sont plus comptées (?interne=0 pour annuler)
+{ const m=location.search.match(/[?&]interne(?:=([01]))?\b/); if(m){ try{ if(m[1]==='0') localStorage.removeItem('fullmotiv-internal'); else localStorage.setItem('fullmotiv-internal','1'); }catch(e){} } }
+function phAllowed(){
+  if(!PH_KEY || location.hostname!=='game.fullmotiv.com' || /[?&](og|debug)\b/.test(location.search)) return false; // ni tests locaux, ni versions de test
+  try{ if(localStorage.getItem('fullmotiv-internal')) return false; }catch(e){}
+  return true;
+}
 function phLoad(){
-  if(!PH_KEY || PH || /[?&](og|debug)\b/.test(location.search)) return;
+  if(PH || !phAllowed()) return;
   PH='loading';
   import('https://cdn.jsdelivr.net/npm/posthog-js@1.200.0/+esm').then(m=>{
     const ph=m.default;
@@ -2138,13 +2145,14 @@ function phLoad(){
 }
 // Aucun prénom ni donnée personnelle : uniquement des compteurs de jeu
 function track(ev,props,beacon){
-  if(!PH_KEY || PH==='off') return;
+  if(PH==='off' || !phAllowed()) return;
   const a=[ev,props||{},beacon?{transport:'sendBeacon'}:undefined];
   if(PH && PH!=='loading') PH.capture(...a); else { phQueue.push(a); phLoad(); }
 }
 const LEVEL={easy:'1/2/3',normal:'4/5/6',pro:'7/8'};
-let M=null; // match en cours : début, points joués et gagnés
+let M=null, M_bg=null, hiddenAt=0; // match en cours : début, points joués et gagnés ; M_bg : match mis en arrière-plan
 function matchStart(mode){
+  M_bg=null;
   M={t0:performance.now(), pts:0, won:0, first:false, mode};
   track('match_start',{mode, court:settings.players, level:LEVEL[settings.diff], format:settings.format, golden:settings.golden, quality:Q, friends:NET.role==='host'?NET.slots.filter(Boolean).length-1:0});
 }
@@ -2158,6 +2166,14 @@ function matchStop(ev,extra,beacon){
   M=null;
 }
 addEventListener('pagehide',()=>matchStop('match_quit',{where:'tab'},true));
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){ if(M){ M_bg=M; hiddenAt=performance.now(); matchStop('match_quit',{where:'background'},true); } return; }
+  // retour sur l'onglet pendant la même partie : l'abandon est annulé par match_resume, le chrono reprend sans compter l'absence
+  if(M_bg && !M && !state.demo && endEl.hidden && state.mode!=='idle'){
+    M=M_bg; M_bg=null; M.t0+=performance.now()-hiddenAt;
+    track('match_resume',{mode:M.mode, court:settings.players, level:LEVEL[settings.diff], sec:Math.round((performance.now()-M.t0)/1000), points_played:M.pts, points_won:M.won});
+  } else M_bg=null;
+});
 addEventListener('load',()=>setTimeout(phLoad,1500));
 
 /* ===================== aide ===================== */
