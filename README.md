@@ -14,17 +14,18 @@ Ouvrez `index.html` dans un navigateur récent. Aucune installation ni étape de
 
 ## Commandes
 
-| Action | Ordinateur | Smartphone |
+Sur ordinateur, tout se joue de la main gauche. Les touches suivent leur position sur le clavier : en QWERTY, ZQSD devient WASD et A devient Q. Le jeu affiche les bons libellés.
+
+| Action | Ordinateur (AZERTY) | Smartphone |
 |---|---|---|
-| Se déplacer | ZQSD / WASD / flèches | Joystick (pouce gauche) |
-| Volée / drive | L ou Espace | VOLÉE |
-| Lob | J | LOB |
-| Smash (bandeja depuis le fond) | K | SMASH |
+| Se déplacer | ZQSD ou flèches | Joystick (pouce gauche) |
+| Servir et frapper (le jeu choisit le coup) | Espace ou clic | Toucher le pad |
+| Forcer un lob | A (ou J) | Glisser le pad vers le haut |
+| Forcer un smash (bandeja depuis le fond) | E (ou K) | Glisser le pad vers le bas |
 | Viser | Gauche / droite au moment de la frappe | Joystick |
-| Power-up | E | Bouton éclair |
 | Pause | Échap ou P | Bouton pause |
 
-Au service : L à plat, K rapide, J sûr.
+Au service : Espace à plat, E rapide, A sûr.
 
 ## Règles appliquées
 

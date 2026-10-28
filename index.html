@@ -358,9 +358,9 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
   <div id="aim" hidden data-testid="smash-aim">
     <div class="aim-title">Smash ! <em>Choisissez la trajectoire</em></div>
     <div class="aim-opts">
-      <button class="aim-opt" data-trick="por3" data-testid="aim-por3"><span class="kc">←</span><b>POR 3</b><small>Rebond haut, sort sur le côté</small></button>
-      <button class="aim-opt" data-trick="por4" data-testid="aim-por4"><span class="kc">↑</span><b>POR 4</b><small>Rebond haut, sort par le fond</small></button>
-      <button class="aim-opt" data-trick="vitre" data-testid="aim-vitre"><span class="kc">→</span><b>DANS LA VITRE</b><small>Coin adverse, plus sûr</small></button>
+      <button class="aim-opt" data-trick="por3" data-testid="aim-por3"><span class="kc" data-key="KeyA">Q</span><b>POR 3</b><small>Rebond haut, sort sur le côté</small></button>
+      <button class="aim-opt" data-trick="por4" data-testid="aim-por4"><span class="kc" data-key="KeyW">Z</span><b>POR 4</b><small>Rebond haut, sort par le fond</small></button>
+      <button class="aim-opt" data-trick="vitre" data-testid="aim-vitre"><span class="kc" data-key="KeyD">D</span><b>DANS LA VITRE</b><small>Coin adverse, plus sûr</small></button>
     </div>
     <div class="aim-timer"><i></i></div>
   </div>
@@ -373,8 +373,8 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
     <div class="bar">
       <div id="left">
       <div id="moveKeys" data-testid="move-keys">
-        <div class="cluster"><span class="kc sm up">Z</span><span class="kc sm">Q</span><span class="kc sm">S</span><span class="kc sm">D</span></div>
-        <div class="lbl">Se déplacer<small>ou WASD / flèches · gauche-droite pour viser</small></div>
+        <div class="cluster"><span class="kc sm up" data-key="KeyW">Z</span><span class="kc sm" data-key="KeyA">Q</span><span class="kc sm" data-key="KeyS">S</span><span class="kc sm" data-key="KeyD">D</span></div>
+        <div class="lbl">Se déplacer<small>ou flèches · gauche-droite pour viser</small></div>
       </div>
       <div id="cards">
         <div class="card" data-testid="card-player">
@@ -396,9 +396,9 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
       </div>
       <div id="right">
         <button id="hitBtn" data-testid="btn-hit" aria-label="Pad de frappe : toucher pour frapper, glisser vers le haut pour lober, vers le bas pour smasher">
-          <span class="pad-zone pad-up"><span class="pad-ar"></span><span class="pad-lb">LOB</span><span class="pad-k"><span class="only-touch">glisser ↑</span><span class="only-desk"><span class="kc">J</span></span></span></span>
+          <span class="pad-zone pad-up"><span class="pad-ar"></span><span class="pad-lb">LOB</span><span class="pad-k"><span class="only-touch">glisser ↑</span><span class="only-desk"><span class="kc" data-key="KeyQ">A</span></span></span></span>
           <span class="pad-zone pad-mid"><span class="hb-main">FRAPPER</span><span class="pad-k"><span class="only-touch">toucher</span><span class="only-desk"><span class="kc">Espace</span> ou clic</span></span></span>
-          <span class="pad-zone pad-down"><span class="pad-k"><span class="only-touch">glisser ↓</span><span class="only-desk"><span class="kc">K</span></span></span><span class="pad-lb">SMASH</span><span class="pad-ar"></span></span>
+          <span class="pad-zone pad-down"><span class="pad-k"><span class="only-touch">glisser ↓</span><span class="only-desk"><span class="kc" data-key="KeyE">E</span></span></span><span class="pad-lb">SMASH</span><span class="pad-ar"></span></span>
         </button>
       </div>
     </div>
@@ -433,9 +433,9 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
         <button class="cta ghost" id="rulesBtn" data-testid="btn-rules">Règles & touches</button>
       </div>
       <div class="keys only-desk">
-        <b>ZQSD / WASD / ↑↓←→</b><span>Se déplacer · viser à la frappe</span>
-        <b>Espace ou clic</b><span>Servir et frapper (drive, volée)</span>
-        <b>J · K</b><span>Lob · smash</span>
+        <b><span data-key="KeyW">Z</span><span data-key="KeyA">Q</span>SD ou flèches</b><span>Se déplacer · viser à la frappe</span>
+        <b>Espace ou clic</b><span>Servir et frapper : le jeu choisit le coup</span>
+        <b><span data-key="KeyQ">A</span> · E</b><span>Forcer un lob · un smash</span>
         <b>Échap</b><span>Pause</span>
       </div>
       <div class="keys only-touch">
@@ -493,16 +493,15 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
       <div class="tabpanel" data-panel="keys" role="tabpanel" hidden>
         <table class="keytab">
           <tr><th colspan="2">Ordinateur</th></tr>
-          <tr><td><kbd class="k">Z</kbd><kbd class="k">Q</kbd><kbd class="k">S</kbd><kbd class="k">D</kbd> ou <kbd class="k">W</kbd><kbd class="k">A</kbd><kbd class="k">S</kbd><kbd class="k">D</kbd> ou flèches</td><td>Se déplacer</td></tr>
+          <tr><td><kbd class="k" data-key="KeyW">Z</kbd><kbd class="k" data-key="KeyA">Q</kbd><kbd class="k">S</kbd><kbd class="k">D</kbd> ou flèches</td><td>Se déplacer</td></tr>
           <tr><td><kbd class="k">Espace</kbd> ou clic</td><td><b>Servir et frapper.</b> Le jeu choisit le bon coup (drive, volée, lob, smash, contre-vitre) et affiche son nom sur le bouton</td></tr>
-          <tr><th colspan="2">Ordinateur · lob et smash</th></tr>
-          <tr><td><kbd class="k">L</kbd></td><td>Volée / drive : coup tendu, le coup de base</td></tr>
-          <tr><td><kbd class="k">J</kbd></td><td>Lob : balle haute au fond, idéal quand les adversaires sont au filet</td></tr>
-          <tr><td><kbd class="k">K</kbd></td><td>Smash sur balle haute près du filet. Depuis le fond, il devient une <b>bandeja</b> (smash contrôlé)</td></tr>
+          <tr><th colspan="2">Ordinateur · lob et smash, sans lâcher la main gauche</th></tr>
+          <tr><td><kbd class="k" data-key="KeyQ">A</kbd> (ou <kbd class="k">J</kbd>)</td><td>Lob : balle haute au fond, idéal quand les adversaires sont au filet</td></tr>
+          <tr><td><kbd class="k">E</kbd> (ou <kbd class="k">K</kbd>)</td><td>Smash sur balle haute près du filet. Depuis le fond, il devient une <b>bandeja</b> (smash contrôlé)</td></tr>
           <tr><td>Gauche / droite <b>au moment de la frappe</b></td><td>Viser à gauche ou à droite. Sans direction, la balle part en diagonale</td></tr>
           <tr><td><kbd class="k">Échap</kbd> ou <kbd class="k">P</kbd></td><td>Pause</td></tr>
           <tr><th colspan="2">Au service</th></tr>
-          <tr><td><kbd class="k">Espace</kbd> ou clic</td><td>Service à plat. Experts : <kbd class="k">K</kbd> service rapide mais risqué, <kbd class="k">J</kbd> service lent et sûr</td></tr>
+          <tr><td><kbd class="k">Espace</kbd> ou clic</td><td>Service à plat. Experts : <kbd class="k">E</kbd> service rapide mais risqué, <kbd class="k" data-key="KeyQ">A</kbd> service lent et sûr</td></tr>
           <tr><td>Gauche / droite</td><td>Déplacer la cible dans le carré de service</td></tr>
           <tr><th colspan="2">Smartphone</th></tr>
           <tr><td>Joystick (pouce gauche, n'importe où à gauche de l'écran)</td><td>Se déplacer et viser</td></tr>
@@ -517,13 +516,13 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
       </div>
 
       <div class="tabpanel" data-panel="shots" role="tabpanel" hidden>
-        <div class="rule"><h3>Le pad de frappe</h3><p><b>Touchez</b> le pad (ou <b>Espace</b>) pour servir et frapper. <b>Glissez du bas vers le haut</b> pour lober (<b>J</b>), <b>du haut vers le bas</b> pour smasher (<b>K</b>). Quand un lob ou un smash est conseillé, sa zone s'allume sur le pad.</p></div>
+        <div class="rule"><h3>Le pad de frappe</h3><p><b>Touchez</b> le pad (ou <b>Espace</b>) pour servir et frapper. <b>Glissez du bas vers le haut</b> pour lober (<b data-key="KeyQ">A</b> au clavier), <b>du haut vers le bas</b> pour smasher (<b>E</b>). Quand un lob ou un smash est conseillé, sa zone s'allume sur le pad.</p></div>
         <table class="keytab">
           <tr><th>Coup</th><th>Quand et comment le jouer</th></tr>
           <tr><td>Drive</td><td>la balle a rebondi chez vous et arrive à hauteur de hanche : touchez le pad. C'est le coup de base.</td></tr>
           <tr><td>Volée</td><td>vous la prenez avant le rebond, en général près du filet : touchez le pad.</td></tr>
-          <tr><td>Lob</td><td>les adversaires sont au filet et vous êtes au fond : glissez le pad du bas vers le haut (<kbd class="k">J</kbd>).</td></tr>
-          <tr><td>Smash</td><td>la balle est haute et vous êtes près du filet : glissez le pad du haut vers le bas (<kbd class="k">K</kbd>).</td></tr>
+          <tr><td>Lob</td><td>les adversaires sont au filet et vous êtes au fond : glissez le pad du bas vers le haut (<kbd class="k" data-key="KeyQ">A</kbd>).</td></tr>
+          <tr><td>Smash</td><td>la balle est haute et vous êtes près du filet : glissez le pad du haut vers le bas (<kbd class="k">E</kbd>).</td></tr>
           <tr><td>Bandeja</td><td>la balle est haute mais vous êtes au fond : glissez vers le bas, le smash devient un coup contrôlé.</td></tr>
           <tr><td>Contre-vitre</td><td>la balle vous a dépassé : votre joueur la renvoie contre sa propre vitre.</td></tr>
           <tr><td>Double vitre</td><td>parfois, un drive croisé part dans le coin adverse pour toucher deux vitres.</td></tr>
@@ -1523,7 +1522,7 @@ function showServeHint(){
   h.innerHTML=`<div class="h-title">À vous de <em>servir</em>${R.serveNum===2?' · 2e balle':''}</div>
     <div class="h-opts">
       <div class="h-opt"><span class="kc hot">Espace</span><span>ou clic<small>pour servir</small></span></div>
-      <div class="h-opt"><span class="kc">←</span><span class="kc">→</span><span>Viser<small>dans le carré en diagonale</small></span></div>
+      <div class="h-opt"><span class="kc">${keyName('KeyA')}</span><span class="kc">${keyName('KeyD')}</span><span>Viser<small>dans le carré en diagonale</small></span></div>
     </div>`;
 }
 function startServe(type){
@@ -1872,8 +1871,21 @@ function homeFor(pl){
 /* ===================== input ===================== */
 const input={x:0,z:0}, keys={};
 const KEYMAP={KeyW:'u',ArrowUp:'u',KeyS:'d',ArrowDown:'d',KeyA:'l',ArrowLeft:'l',KeyD:'r',ArrowRight:'r'};
+// Les touches suivent leur position physique (e.code) : ZQSD en AZERTY = WASD en QWERTY, A/E (Q/E en QWERTY) juste à côté.
+// Seuls les libellés affichés changent selon le clavier : deviné par la langue, puis confirmé à la première frappe.
+const KB_LABELS={azerty:{KeyW:'Z',KeyA:'Q',KeyQ:'A'}, qwerty:{KeyW:'W',KeyA:'A',KeyQ:'Q'}};
+let KB=/^fr(-(fr|be|lu|mc))?$/i.test(navigator.language||'')?'azerty':'qwerty';
+const keyName=code=>KB_LABELS[KB][code]||code.replace(/^Key|^Digit/,'');
+function relabelKeys(){ document.querySelectorAll('[data-key]').forEach(el=>{ el.textContent=keyName(el.dataset.key); }); }
+function learnLayout(e){
+  const k=(e.key||'').toLowerCase(), guess={KeyW:{z:'azerty',w:'qwerty'},KeyA:{q:'azerty',a:'qwerty'},KeyQ:{a:'azerty',q:'qwerty'}}[e.code];
+  const kb=guess&&guess[k]; if(kb && kb!==KB){ KB=kb; relabelKeys(); if(state.mode==='serve') showServeHint(); }
+}
+try{ navigator.keyboard && navigator.keyboard.getLayoutMap().then(m=>{ const w=m.get('KeyW'); if(w){ KB=w==='z'?'azerty':'qwerty'; relabelKeys(); } }).catch(()=>{}); }catch(e){}
+relabelKeys();
 window.addEventListener('keydown',e=>{
   if(e.target && e.target.closest && e.target.closest('input,textarea,select')) return; // saisie d'un prénom : pas de raccourcis du jeu
+  learnLayout(e);
   if(state.aim){
     const m={ArrowLeft:'por3',KeyA:'por3',Digit1:'por3',ArrowUp:'por4',KeyW:'por4',Digit2:'por4',Space:'por4',ArrowRight:'vitre',KeyD:'vitre',Digit3:'vitre'}[e.code];
     if(m){ e.preventDefault(); if(!e.repeat && state.aim.opts[m]) chooseAim(m); }
@@ -1881,8 +1893,8 @@ window.addEventListener('keydown',e=>{
   }
   if(KEYMAP[e.code]){ keys[KEYMAP[e.code]]=true; e.preventDefault(); }
   if(e.repeat) return;
-  if(e.code==='KeyJ') queueShot('lob');
-  else if(e.code==='KeyK') queueShot('smash');
+  if(e.code==='KeyQ' || e.code==='KeyJ') queueShot('lob');
+  else if(e.code==='KeyE' || e.code==='KeyK') queueShot('smash');
   else if(e.code==='KeyL'){ queueShot('volley'); }
   else if(e.code==='Space'){ queueShot('volley'); e.preventDefault(); }
   else if(e.code==='Escape'||e.code==='KeyP'){ if(!helpEl.hidden) closeHelp(); else togglePause(); }
