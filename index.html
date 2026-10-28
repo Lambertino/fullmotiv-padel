@@ -123,6 +123,8 @@ button:focus-visible,input:focus-visible+span,summary:focus-visible{outline:2px 
 #score table{border-collapse:separate;border-spacing:0;background:rgba(6,21,20,.92);border:1px solid rgba(255,255,255,.2);border-radius:4px;overflow:hidden}
 #score td{padding:3px 10px;font:800 22px/1.15 var(--display);color:#fff;border-left:1px solid rgba(255,255,255,.16);text-align:center;min-width:20px}
 #score tr.t0 td{border-bottom:1px solid rgba(255,255,255,.16)}
+#score tr.t0 td.tn{box-shadow:inset 4px 0 0 var(--k0,#ff8fb4)}
+#score tr.t1 td.tn{box-shadow:inset 4px 0 0 var(--k1,#f3efe6)}
 #score td.tn{text-align:left;border-left:0;letter-spacing:.04em;text-transform:uppercase;padding-left:8px;min-width:96px}
 #score td.tn i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:1px;background:transparent}
 #score td.tn i.on{background:var(--ball);box-shadow:0 0 6px var(--ball)}
@@ -170,7 +172,7 @@ h1 em{font-style:normal;color:var(--accent)}
 h1.logo{transform:none;line-height:0;margin:0}
 h1.logo svg{display:block;height:42px;width:auto;max-width:100%;fill:var(--fg);filter:drop-shadow(0 0 24px rgba(255,177,200,.3))}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.brand{display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:14px;margin-bottom:14px}
 .brand img{border-radius:50%;flex:none}
 .lede{margin:0;font:400 15px/1.5 var(--body);color:var(--muted);max-width:40ch}
 fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
@@ -330,8 +332,8 @@ body.touch #tip{top:calc(150px + env(safe-area-inset-top,0px))}
 .lb-slots{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .lb-slots li{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);font:600 14px var(--body);min-width:0}
 .lb-slots li i{width:10px;height:10px;border-radius:50%;flex:none}
-.lb-slots li.t0 i{background:var(--accent)}
-.lb-slots li.t1 i{background:#f3efe6}
+.lb-slots li.t0 i{background:var(--k0,var(--accent))}
+.lb-slots li.t1 i{background:var(--k1,#f3efe6)}
 .lb-slots li span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lb-slots li.empty span{color:var(--muted);font-weight:500;font-style:italic}
 .lb-slots li small{margin-left:auto;flex:none;font:700 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--neon)}
@@ -676,6 +678,17 @@ const K = () => CW / 5; // échelle latérale des placements et des cibles
 // Ouvertures FIP : 2 par côté, symétriques au filet (0,72 à 1,10 m de large, 2 m de haut, à plus de 9 m du fond).
 const DOOR0 = 0.08, DOOR1 = 1.0, DOOR_H = 2.0;
 const TEAM = ['Roses','Blancs'];
+// Tenues d'équipe tirées au sort à chaque match : maillots (joueur 1, joueur 2), short, et surfaces où elles se confondraient
+const KITS=[
+  {name:'Roses',  shirt:[0xff8fb4,0xffc4d4], shorts:0x0b2b2d, css:'#ff8fb4', avoid:[]},
+  {name:'Blancs', shirt:[0xf3efe6,0xdcefe8], shorts:0x1d4a44, css:'#f3efe6', avoid:[]},
+  {name:'Jaunes', shirt:[0xd9ff3c,0xeaff8f], shorts:0x1d2b2a, css:'#d9ff3c', avoid:[]},
+  {name:'Bleus',  shirt:[0x5fb8ff,0x9fd4ff], shorts:0x12304a, css:'#5fb8ff', avoid:[1]},
+  {name:'Orange', shirt:[0xff8a3d,0xffb072], shorts:0x2a1a12, css:'#ff8a3d', avoid:[3]},
+  {name:'Mauves', shirt:[0xb18cff,0xcdb5ff], shorts:0x241a3d, css:'#b18cff', avoid:[2]}
+];
+const KIT_CLASH=[[0,4],[0,5]]; // roses trop proches de l'orange et du mauve
+let KIT=[0,1];
 const sideOf = z => z > 0 ? 0 : 1;
 const teamDir = t => t === 0 ? 1 : -1;
 const netH = x => 0.88 + 0.04 * Math.min(1, Math.abs(x) / CW);
@@ -1054,6 +1067,29 @@ function applyView(){
 }
 
 /* ===================== players ===================== */
+function dressPlayer(pl, shirt, shorts){
+  const c=new THREE.Color();
+  pl.parts.g.traverse(o=>{ const R=o.isMesh && o.geometry.userData.ranges; if(!R || !R.length) return; const A=o.geometry.attributes.color;
+    for(const r of R){ c.setHex(r.role==='shirt'?shirt:shorts); for(let i=r.s;i<r.s+r.n;i++) A.setXYZ(i,c.r,c.g,c.b); } A.needsUpdate=true; });
+  const n=pl.parts.num; n.material.map.dispose(); n.material.map=numberTex(pl.parts.number,'#'+new THREE.Color(shorts).getHexString()); n.material.needsUpdate=true;
+}
+function setKits(a,b){
+  KIT=[a,b];
+  for(const p of ALL){ const k=KITS[KIT[p.team]]; dressPlayer(p, k.shirt[p.idx], k.shorts); }
+  document.documentElement.style.setProperty('--k0',KITS[a].css); document.documentElement.style.setProperty('--k1',KITS[b].css);
+  teamNames();
+}
+function randomKits(){ // deux tenues bien distinctes, lisibles sur le terrain du jour, jamais la même affiche deux fois de suite
+  const ok=i=>!KITS[i].avoid.includes(surface);
+  for(let n=0;n<50;n++){ const a=Math.random()*KITS.length|0, b=Math.random()*KITS.length|0;
+    if(a===b || !ok(a) || !ok(b) || KIT_CLASH.some(([x,y])=>(x===a&&y===b)||(x===b&&y===a))) continue;
+    if((a===KIT[0]&&b===KIT[1])||(a===KIT[1]&&b===KIT[0])) continue;
+    return setKits(a,b); }
+}
+function teamNames(){
+  TEAM[0]=SINGLE?(myName()||'Vous'):KITS[KIT[0]].name; TEAM[1]=SINGLE?'Adversaire':KITS[KIT[1]].name;
+  [0,1].forEach(t=>{ const r=document.getElementById('srv'+t); if(r) r.parentNode.lastChild.textContent=TEAM[t]; });
+}
 // Raquette : tête en goutte + cœur ouvert vers le manche, comme les vraies (≈ 46 × 26 cm avec le grip).
 // Les trous et le décor sont peints dans une petite texture (pixels transparents) : bien moins de triangles que des trous modélisés.
 // Repère local : centre de la tête en (0,0), +y vers la main.
@@ -1126,15 +1162,15 @@ function bakeParts(root, bodyMat){
   for(const grp of groups){
     const ms=grp.children.filter(m=>m.isMesh && !Array.isArray(m.material) && !m.material.map && !m.material.transparent);
     if(!ms.length) continue;
-    let nv=0, ni=0; const parts=ms.map(m=>{ m.updateMatrix(); const geo=m.geometry.clone().applyMatrix4(m.matrix); if(!geo.index){ const a=new Uint32Array(geo.attributes.position.count); for(let i=0;i<a.length;i++) a[i]=i; geo.setIndex(new THREE.BufferAttribute(a,1)); } nv+=geo.attributes.position.count; ni+=geo.index.count; return {geo,col:m.material.color}; });
+    let nv=0, ni=0; const parts=ms.map(m=>{ m.updateMatrix(); const geo=m.geometry.clone().applyMatrix4(m.matrix); if(!geo.index){ const a=new Uint32Array(geo.attributes.position.count); for(let i=0;i<a.length;i++) a[i]=i; geo.setIndex(new THREE.BufferAttribute(a,1)); } nv+=geo.attributes.position.count; ni+=geo.index.count; return {geo,col:m.material.color,role:m.material.userData.role}; });
     const pos=new Float32Array(nv*3), nor=new Float32Array(nv*3), col=new Float32Array(nv*3), idx=new Uint32Array(ni);
-    let v=0, k=0;
-    for(const {geo,col:c} of parts){ const P=geo.attributes.position, N=geo.attributes.normal, I=geo.index;
+    let v=0, k=0; const ranges=[];
+    for(const {geo,col:c,role} of parts){ const P=geo.attributes.position, N=geo.attributes.normal, I=geo.index; if(role) ranges.push({s:v,n:P.count,role});
       for(let i=0;i<P.count;i++){ pos.set([P.getX(i),P.getY(i),P.getZ(i)],(v+i)*3); nor.set([N.getX(i),N.getY(i),N.getZ(i)],(v+i)*3); col.set([c.r,c.g,c.b],(v+i)*3); }
       for(let i=0;i<I.count;i++) idx[k+i]=I.getX(i)+v; v+=P.count; k+=I.count; geo.dispose(); }
     const merged=new THREE.BufferGeometry();
     merged.setAttribute('position',new THREE.BufferAttribute(pos,3)); merged.setAttribute('normal',new THREE.BufferAttribute(nor,3)); merged.setAttribute('color',new THREE.BufferAttribute(col,3)); merged.setIndex(new THREE.BufferAttribute(idx,1));
-    merged.computeBoundingSphere();
+    merged.computeBoundingSphere(); merged.userData.ranges=ranges;
     for(const m of ms){ grp.remove(m); if(m.material!==bodyMat) m.material.dispose(); }
     grp.add(new THREE.Mesh(merged,bodyMat));
   }
@@ -1143,6 +1179,7 @@ function bakeParts(root, bodyMat){
 function buildPlayerMesh(o){
   const g=new THREE.Group();
   const M={skin:mat(o.skin), shirt:mat(o.shirt), shorts:mat(o.shorts), accent:mat(o.accent), white:mat(0xf2f4f8), sole:mat(0x2a2f3a), hair:mat(o.hair), dark:mat(0x151a26)};
+  M.shirt.userData.role='shirt'; M.shorts.userData.role='shorts';
   const hang=(rt,rb,h,seg,m)=>{ const geo=new THREE.CylinderGeometry(rt,rb,h,seg); geo.translate(0,-h/2,0); return new THREE.Mesh(geo,m); };
   // membre galbé : profil [rayon, part de la longueur] du haut vers le bas
   const limb=(prof,h,m)=>new THREE.Mesh(new THREE.LatheGeometry(prof.slice().reverse().map(([r,f])=>new THREE.Vector2(r,-f*h)),14),m);
@@ -1219,7 +1256,7 @@ function buildPlayerMesh(o){
   const shadow=new THREE.Mesh(new THREE.CircleGeometry(0.42,24),basic(0x000000,{transparent:true,opacity:0.14,depthWrite:false}));
   shadow.rotation.x=-Math.PI/2; shadow.position.y=0.012;
   g.traverse(m=>{ if(m.isMesh && !m.material.transparent) m.castShadow=true; });
-  return {g, legs, chest, head, armR, armL, shadow};
+  return {g, legs, chest, head, armR, armL, shadow, num, number:o.number};
 }
 let ME=null; // joueur contrôlé sur cet appareil (l'hôte : Roses n°1 ; un invité : sa place)
 const ALL=[], players=[]; // ALL : les 4 joueurs ; players : ceux en jeu (2 en simple, 4 en double)
@@ -2278,8 +2315,7 @@ function setLayout(single=settings.players==='1v1', solo=false){
   for(const p of ALL) p.sideSign=(p.team===0?1:-1)*(p.idx===0?1:-1)*(p.team===0 && left?-1:1);
   document.getElementById('youRole').textContent=single?'SIMPLE':left?'REVÉS':'DRIVE';
   document.getElementById('mateRole').textContent=(left?'DRIVE':'REVÉS')+' · IA';
-  TEAM[0]=single?(myName()||'Vous'):'Roses'; TEAM[1]=single?'Adversaire':'Blancs';
-  [0,1].forEach(t=>{ document.getElementById('srv'+t).parentNode.lastChild.textContent=TEAM[t]; });
+  teamNames();
 }
 function applyRoles(){
   const touch=document.body.classList.contains('touch');
@@ -2291,7 +2327,7 @@ function applyRoles(){
   }
 }
 function startMatch(){
-  endPractice(); readSettings(); setLayout(); randomSurface(); state.aimCount=0; state.lastAim=0; state.demo=false; state.paused=false; resetScore();
+  endPractice(); readSettings(); setLayout(); randomSurface(); randomKits(); state.aimCount=0; state.lastAim=0; state.demo=false; state.paused=false; resetScore();
   applyRoles();
   menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false;
   callEl.innerHTML='';
@@ -2314,12 +2350,12 @@ function togglePause(){
 function matchOver(w){
   matchStop('match_end',{won:w===ME.team, sets:S.sets.map(s=>s[0]+'-'+s[1]).join(' ')});
   state.mode='idle'; R.live=false; hudEl.hidden=true; document.getElementById('hint').hidden=true; document.body.classList.remove('serving');
-  document.getElementById('endTitle').textContent=SINGLE?(w===0?'Victoire !':'Défaite'):(w===0?'Victoire des Roses':'Victoire des Blancs');
+  document.getElementById('endTitle').textContent=SINGLE?(w===0?'Victoire !':'Défaite'):('Victoire des '+TEAM[w]);
   document.getElementById('endSets').textContent=S.sets.map(s=>s[0]+'-'+s[1]).join('   ');
   const you=myName()?'Bravo '+myName()+' : vous':'Vous';
   document.getElementById('endText').textContent = SINGLE
     ? (w===0 ? you+" remportez la finale 1 contre 1 de l'Arena Masters." : 'Votre adversaire remporte la finale. Variez la hauteur et la longueur pour le faire courir.')
-    : (w===0 ? "Votre équipe remporte la finale de l'Arena Masters." : 'Les Blancs remportent la finale. Essayez de monter au filet plus souvent.');
+    : (w===0 ? "Votre équipe remporte la finale de l'Arena Masters." : 'Les '+TEAM[1]+' remportent la finale. Essayez de monter au filet plus souvent.');
   if(NET.role==='host' && NET.live) netBroadcast({t:'end',w,sets:S.sets});
   endEl.hidden=false; document.getElementById('againBtn').focus();
 }
@@ -2470,7 +2506,7 @@ function renderLobby(){
   const ol=document.getElementById('lbSlots'); ol.innerHTML='';
   sp.forEach((p,i)=>{ const li=document.createElement('li'), x=slots[i];
     li.className='t'+p.team+(x?'':' empty');
-    const team=p.team===0?(SINGLE?'Vous':'Roses'):(SINGLE?'En face':'Blancs');
+    const team=p.team===0?(SINGLE?'Vous':KITS[KIT[0]].name):(SINGLE?'En face':KITS[KIT[1]].name);
     li.innerHTML='<i></i><span></span><small></small>';
     li.querySelector('span').textContent = x ? x.name : 'En attente…';
     li.querySelector('small').textContent = (NET.slots.length && i===mine) ? 'Vous' : i===0 ? 'Hôte' : (SINGLE?'':team);
@@ -2526,7 +2562,7 @@ function hostDrop(c){
   lobbyBroadcast();
 }
 function lobbyBroadcast(){ renderLobby(); netBroadcast({t:'lobby',slots:NET.slots.map(x=>x?x.name:null),players:settings.players}); }
-function startMsg(){ return {t:'start',settings:{format:settings.format,golden:settings.golden,diff:settings.diff,players:settings.players},surface,names:NET.slots.map(x=>x?x.name:null)}; }
+function startMsg(){ return {t:'start',settings:{format:settings.format,golden:settings.golden,diff:settings.diff,players:settings.players},surface,kits:KIT,names:NET.slots.map(x=>x?x.name:null)}; }
 function startNetMatch(){
   if(NET.role!=='host') return;
   const sp=slotPlayers();
@@ -2580,7 +2616,7 @@ function guestOnData(m){
   else if(m.t==='bye'){ guestHostLeft(); }
 }
 function guestStart(m){
-  Object.assign(settings,m.settings); setLayout(); if(m.surface!=null) setSurface(m.surface);
+  Object.assign(settings,m.settings); setLayout(); if(m.surface!=null) setSurface(m.surface); if(m.kits) setKits(m.kits[0],m.kits[1]);
   NET.slots=m.names.map(n=>n?{name:n}:null);
   for(const p of ALL) p.ctl='ai';
   ME=slotPlayers()[NET.meSlot]; ME.ctl='local';
@@ -2590,7 +2626,7 @@ function guestStart(m){
   hideLobby(); menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false; callEl.innerHTML='';
   document.getElementById('hint').hidden=true; document.body.classList.remove('serving');
   resetScore(); updateScoreHUD(); setCardNames();
-  banner(SINGLE?'Vous – Adversaire':'Roses – Blancs','Partie entre amis',1600);
+  banner(SINGLE?'Vous – Adversaire':TEAM[0]+' – '+TEAM[1],'Partie entre amis',1600);
   matchStart('guest');
 }
 function guestUpdate(dt){
