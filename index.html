@@ -1759,6 +1759,8 @@ function doHit(pl,type,q,trick,forceCV){
   ball.kick=0; ball.trick=null;
   if(trick){ eff='smash'; ball.v.copy(trick.v); ball.kick=trick.kick; ball.trick=trick.ok?trick.kind:null; }
   else if(cv){ eff='contre'; ball.v.copy(cv); } else ball.v.copy(solve(p0,tx,tz2,T,netErr));
+  // la balle reste jouable (règle FIP), mais un POR 3 / POR 4 réussi est dur à défendre : l'IA ne s'y retrouve qu'une fois sur 5 à 1 sur 2 selon le niveau
+  ball.trickSave = Math.random() < ({easy:0.2,normal:0.35,pro:0.5}[settings.diff]||0.35);
   ball.netTouched=false; ball.rolling=false;
   const wasServeReturn=R.isServe;
   R.lastHitter=t; R.crossed=false; R.bounces=0; R.touchedNet=false; R.isServe=false; R.glass=false; R.gh=0; R.gw='';
@@ -2153,9 +2155,8 @@ function updatePlayers(dt){
         }
         else if(d<pl.reach && contreVitreChance(pl)===1) tip('contre'); // la balle file dans son dos : on lui apprend le contre-vitre (une fois, entre deux points)
       } else {
-        const trickLive=ball.trick && !R.glass; // un POR 3 / POR 4 réussi est injouable ; raté (il touche une vitre), il redevient jouable
         const waitCV=pl.wantCV && ball.v.z*teamDir(pl.team)>0 && ball.p.z*teamDir(pl.team)<8.0; // en contre-vitre, l'IA attend que la balle arrive près de sa vitre
-        if(d<pl.reach && y>0.24 && y<2.85 && (ball.v.y<1.5 || y>0.8) && !trickLive && !waitCV) aiShot(pl);
+        if(d<pl.reach && y>0.24 && y<2.85 && (ball.v.y<1.5 || y>0.8) && !waitCV && (!ball.trick || R.glass || ball.trickSave)) aiShot(pl); // règle FIP : après un smash, la balle reste jouable tant qu'elle est dans le camp adverse
       }
     }
     if(pl.queued){ pl.queued.t-=dt; if(pl.queued.t<=0){ swingAnim(pl,pl.queued.type); pl.queued=null; } }
