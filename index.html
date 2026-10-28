@@ -1391,15 +1391,14 @@ function awardPoint(t){
   if(S.tiebreak){ if(S.points[t]>=7 && S.points[t]-S.points[o]>=2) gw=true; else if((S.points[0]+S.points[1])%6===0) banner('Changement de côté','Tie-break · '+S.points[0]+'-'+S.points[1],1500); }
   else if(settings.golden ? S.points[t]>=4 : (S.points[t]>=4 && S.points[t]-S.points[o]>=2)) gw=true;
   if(!gw) return false;
-  const tbPts=S.points.slice(); S.games[t]++; S.points=[0,0]; S.gameIndex++;
+  S.games[t]++; S.points=[0,0]; S.gameIndex++;
   const G6=settings.format==='quick'?4:6, gs=S.games[0]+S.games[1];
   let setWon=false;
   if(S.tiebreak) setWon=true;
   else if(S.games[t]>=G6 && S.games[t]-S.games[o]>=2) setWon=true;
   else if(S.games[0]===G6 && S.games[1]===G6) S.tiebreak=true;
   if(setWon){
-    S.sets.push(S.tbOnly?tbPts:S.games.slice()); S.setsWon[t]++; S.tiebreak=false; S.games=[0,0];
-    if(S.tbOnly) return 'match';
+    S.sets.push(S.games.slice()); S.setsWon[t]++; S.tiebreak=false; S.games=[0,0];
     if(S.setsWon[t]>=(settings.format==='quick'?1:2)) return 'match';
     banner('Set '+TEAM[t], S.sets.map(s=>s[0]+'-'+s[1]).join('  ')+(gs%2?' · Changement de côté':''),2000);
   } else {
@@ -2126,7 +2125,7 @@ window.addEventListener('resize',()=>{ fitCamera(); if(document.body.classList.c
 
 /* ===================== menus ===================== */
 const menuEl=document.getElementById('menu'), hudEl=document.getElementById('hud'), pauseEl=document.getElementById('pause'), endEl=document.getElementById('end');
-function resetScore(){ S.sets=[]; S.games=[0,0]; S.points=[0,0]; S.tiebreak=false; S.tbOnly=false; S.gameIndex=0; S.setsWon=[0,0]; }
+function resetScore(){ S.sets=[]; S.games=[0,0]; S.points=[0,0]; S.tiebreak=false; S.gameIndex=0; S.setsWon=[0,0]; }
 function readSettings(){
   settings.players=document.querySelector('input[name=players]:checked').value;
   settings.format=document.querySelector('input[name=format]:checked').value;
@@ -2166,10 +2165,8 @@ function startMatch(){
   menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false;
   callEl.innerHTML='';
   setupPoint(false);
-  let first=false; try{ first=NET.role!=='host' && !localStorage.getItem('fullmotiv-played'); localStorage.setItem('fullmotiv-played','1'); }catch(e){}
-  if(first){ S.tiebreak=true; S.tbOnly=true; updateScoreHUD(); } // première partie sur l'appareil : courte, pour marquer vite
   matchStart(NET.role==='host'?'host':'solo');
-  banner(TEAM[0]+' – '+TEAM[1], (SINGLE?'1 contre 1 · ':'')+(first?'Premier match · tie-break en 7 points':settings.format==='quick'?'Match rapide · 1 set':'Match complet · 2 sets gagnants'),1800);
+  banner(TEAM[0]+' – '+TEAM[1], (SINGLE?'1 contre 1 · ':'')+(settings.format==='quick'?'Match rapide · 1 set':'Match complet · 2 sets gagnants'),1800);
 }
 function toMenu(){
   endPractice(); setLayout();
@@ -2238,7 +2235,7 @@ let M=null, M_bg=null, hiddenAt=0; // match en cours : début, points joués et 
 function matchStart(mode){
   M_bg=null;
   M={t0:performance.now(), pts:0, won:0, first:false, mode};
-  track('match_start',{mode, court:settings.players, level:LEVEL[settings.diff], format:S.tbOnly?'tiebreak':settings.format, golden:settings.golden, quality:Q, friends:NET.role==='host'?NET.slots.filter(Boolean).length-1:0});
+  track('match_start',{mode, court:settings.players, level:LEVEL[settings.diff], format:settings.format, golden:settings.golden, quality:Q, friends:NET.role==='host'?NET.slots.filter(Boolean).length-1:0});
 }
 function matchPoint(w){
   if(!M) return; M.pts++;
