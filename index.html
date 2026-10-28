@@ -252,7 +252,8 @@ body.touch #hitBtn{width:136px;height:224px}
 #hitBtn .pad-up,#hitBtn .pad-down{background:rgba(255,255,255,.05);color:var(--muted)}
 #hitBtn .pad-up{border-bottom:1px solid rgba(255,255,255,.12)}
 #hitBtn .pad-down{border-top:1px solid rgba(255,255,255,.12)}
-#hitBtn .pad-mid{background:var(--accent);color:var(--on-accent)}
+#hitBtn .pad-mid{background:var(--accent);color:var(--on-accent);position:relative}
+#hitBtn .pad-mid::after{content:'';position:absolute;left:12%;bottom:7px;height:6px;border-radius:3px;width:calc(76% * var(--pw,0));background:var(--pwc,#9fe3d2);box-shadow:0 0 0 1px rgba(11,43,45,.6)} /* jauge de puissance */
 #hitBtn .pad-ar{width:0;height:0;border:7px solid transparent}
 #hitBtn .pad-up .pad-ar{border-bottom:9px solid currentColor;border-top:0}
 #hitBtn .pad-down .pad-ar{border-top:9px solid currentColor;border-bottom:0}
@@ -460,12 +461,13 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
       <div class="keys only-desk">
         <b><span data-key="KeyW">Z</span><span data-key="KeyA">Q</span>SD ou flèches</b><span>Se déplacer · viser à la frappe</span>
         <b>Espace ou clic</b><span>Servir et frapper : le jeu choisit le coup</span>
+        <b>Maintenir Espace</b><span>Charger un coup puissant</span>
         <b><span data-key="KeyQ">A</span> · E</b><span>Forcer un lob · un smash</span>
         <b>Échap</b><span>Pause</span>
       </div>
       <div class="keys only-touch">
         <b>Pouce gauche</b><span>Joystick pour se déplacer et viser</span>
-        <b>Pad de frappe</b><span>Toucher : frapper · glisser ↑ : lob · glisser ↓ : smash</span>
+        <b>Pad de frappe</b><span>Toucher : frapper · rester appuyé : coup puissant · glisser ↑ : lob · glisser ↓ : smash</span>
       </div>
       </section>
     </div>
@@ -522,6 +524,7 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
           <tr><th colspan="2">Ordinateur</th></tr>
           <tr><td><kbd class="k" data-key="KeyW">Z</kbd><kbd class="k" data-key="KeyA">Q</kbd><kbd class="k">S</kbd><kbd class="k">D</kbd> ou flèches</td><td>Se déplacer</td></tr>
           <tr><td><kbd class="k">Espace</kbd> ou clic</td><td><b>Servir et frapper.</b> Le jeu choisit le bon coup (drive, volée, lob, smash, contre-vitre) et affiche son nom sur le bouton</td></tr>
+          <tr><td><kbd class="k">Espace</kbd> maintenu</td><td><b>Coup puissant.</b> Restez appuyé avant l'arrivée de la balle : la jauge autour de votre joueur se remplit. Plus elle est pleine, plus le coup est rapide, mais moins il est précis. Jauge pleine (vert-jaune) au contact : coup parfait</td></tr>
           <tr><th colspan="2">Ordinateur · lob et smash, sans lâcher la main gauche</th></tr>
           <tr><td><kbd class="k" data-key="KeyQ">A</kbd> (ou <kbd class="k">J</kbd>)</td><td>Lob : balle haute au fond, idéal quand les adversaires sont au filet</td></tr>
           <tr><td><kbd class="k">E</kbd> (ou <kbd class="k">K</kbd>)</td><td>Smash sur balle haute près du filet. Depuis le fond, il devient une <b>bandeja</b> (smash contrôlé)</td></tr>
@@ -533,6 +536,7 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
           <tr><th colspan="2">Smartphone</th></tr>
           <tr><td>Joystick (pouce gauche, n'importe où à gauche de l'écran)</td><td>Se déplacer et viser</td></tr>
           <tr><td>Pad de frappe : toucher</td><td>Servir, drive ou volée</td></tr>
+          <tr><td>Pad : rester appuyé</td><td>Coup puissant : la jauge se remplit, jauge pleine au contact = coup parfait</td></tr>
           <tr><td>Pad : glisser du bas vers le haut</td><td>Lob</td></tr>
           <tr><td>Pad : glisser du haut vers le bas</td><td>Smash (bandeja si vous êtes au fond)</td></tr>
           <tr><th colspan="2">Repères sur le terrain</th></tr>
@@ -1310,6 +1314,10 @@ landMark.rotation.x=-Math.PI/2; landMark.position.y=0.015; scene.add(landMark);
 const landMark2=new THREE.Mesh(new THREE.RingGeometry(0.42,0.46,24),landMark.material); landMark2.rotation.x=-Math.PI/2; landMark2.position.y=0.015; scene.add(landMark2);
 const youRing=new THREE.Mesh(new THREE.RingGeometry(0.5,0.6,28),basic(0xff6f9c,{transparent:true,opacity:0.9,depthWrite:false,side:THREE.DoubleSide}));
 youRing.rotation.x=-Math.PI/2; youRing.position.y=0.018; scene.add(youRing);
+// Jauge de puissance au sol : un arc qui se remplit autour du joueur (cyan → vert-jaune au moment parfait → rose si trop tard)
+const powerRing=new THREE.Mesh(new THREE.RingGeometry(0.68,0.8,48,1,Math.PI/2,Math.PI*2),basic(0x9fe3d2,{transparent:true,opacity:0.95,depthWrite:false,side:THREE.DoubleSide}));
+powerRing.rotation.x=-Math.PI/2; powerRing.position.y=0.02; powerRing.visible=false; scene.add(powerRing);
+const PW_COL=[new THREE.Color(0x9fe3d2),new THREE.Color(0xd9ff3c),new THREE.Color(0xff6f9c)];
 const targetMark=new THREE.Mesh(new THREE.RingGeometry(0.3,0.38,6),basic(0xff6f9c,{transparent:true,opacity:0.6,depthWrite:false,side:THREE.DoubleSide}));
 targetMark.rotation.x=-Math.PI/2; targetMark.position.y=0.02; scene.add(targetMark);
 // remplissage de l'hexagone : se remplit à l'approche de la balle, vire au vert-jaune quand c'est le moment idéal pour frapper
@@ -1483,10 +1491,11 @@ const TIPS={
   serve:"Le service se joue en diagonale et doit rebondir dans le carré adverse. Vous avez deux essais.",
   let:"Let : un service qui touche le filet puis tombe dans le bon carré se rejoue.",
   golden:"Point en or : à 40-40, le point suivant remporte le jeu.",
-  padlob:()=>document.body.classList.contains('touch')?"Lob conseillé : glissez le pad du bas vers le haut.":"Lob conseillé : appuyez sur J, ou glissez le pad vers le haut.",
-  padsmash:()=>document.body.classList.contains('touch')?"Smash conseillé : glissez le pad du haut vers le bas.":"Smash conseillé : appuyez sur K, ou glissez le pad vers le bas.",
+  padlob:()=>document.body.classList.contains('touch')?"Lob conseillé : glissez le pad du bas vers le haut.":"Lob conseillé : appuyez sur "+keyName('KeyQ')+", ou glissez le pad vers le haut.",
+  padsmash:()=>document.body.classList.contains('touch')?"Smash conseillé : glissez le pad du haut vers le bas.":"Smash conseillé : appuyez sur E, ou glissez le pad vers le bas.",
   contre:"Contre-vitre : laissez filer la balle jusqu'à votre hauteur puis frappez. Elle repart contre votre vitre et repasse le filet (jamais contre le grillage).",
-  double:"Double vitre : après son rebond, la balle peut toucher plusieurs vitres et reste jouable."
+  double:"Double vitre : après son rebond, la balle peut toucher plusieurs vitres et reste jouable.",
+  charge:()=>(document.body.classList.contains('touch')?"Restez appuyé sur le pad":"Maintenez Espace")+" avant l'arrivée de la balle pour charger un coup puissant. Jauge pleine au contact : coup parfait."
 };
 let tipsSeen={}; try{ tipsSeen=JSON.parse(localStorage.getItem('fullmotiv-tips')||'{}'); }catch(e){}
 const tipEl=document.getElementById('tip'); let tipTO;
@@ -1713,8 +1722,10 @@ function solveTrick(p0, team, kind){
   }
   return null;
 }
-function doHit(pl,type,q,trick,forceCV){
+// pw : puissance chargée (0 à 1). Plus rapide, mais moins précise, sauf frappe parfaite (jauge pleine au contact).
+function doHit(pl,type,q,trick,forceCV,pw){
   const t=pl.team, o=1-t, od=teamDir(o), p0=ball.p.clone();
+  if(pw==null) pw=pl.human?(state.shotPower||0):0;
   const volley=R.bounces===0, glassRet=R.glass;
   state.hitId++;
   const opps=players.filter(p=>p.team===o);
@@ -1738,14 +1749,14 @@ function doHit(pl,type,q,trick,forceCV){
   let doubleVitre=false;
   if(eff==='smash' && p0.y<1.55) eff='volley';
   if(eff==='smash'){
-    if(back){ eff='bandeja'; tz=od*rand(6.8,8.8); T=0.95; }
-    else { tz=od*rand(4.2,7.4); T=0.42+Math.max(0,2.7-p0.y)*0.08; }
-  } else if(eff==='lob'){ tz=od*rand(8.0,9.25); T=rand(1.9,2.25); }
+    if(back){ eff='bandeja'; tz=od*rand(6.8,8.8); T=0.95*(1-0.15*pw); }
+    else { tz=od*rand(4.2,7.4); T=(0.42+Math.max(0,2.7-p0.y)*0.08)*(1-0.25*pw); }
+  } else if(eff==='lob'){ pw=0; tz=od*rand(8.0,9.25); T=rand(1.9,2.25); }
   else {
     const near=Math.abs(p0.z)<4.5;
     tz=od*(near?rand(4.8,8.4):rand(5.8,8.7));
     if(!cv && !volley && Math.random()<0.28){ doubleVitre=true; aimX=-(Math.sign(p0.x)||1)*(CW-0.6); tz=od*rand(5.8,7.2); } // toujours croisé pour toucher la vitre latérale
-    const dist=Math.hypot(aimX-p0.x,tz-p0.z), sp=(near?15.5:14)*(0.94+q*0.1)*(state.perfect?1.1:1);
+    const dist=Math.hypot(aimX-p0.x,tz-p0.z), sp=(near?15.5:14)*(0.94+q*0.1)*(state.perfect?1.1:1)*(1+0.35*pw);
     T=dist/sp;
   }
   let sigma, netErr;
@@ -1753,9 +1764,12 @@ function doHit(pl,type,q,trick,forceCV){
   else { const d=DIFF[t===0?partnerDiff():settings.diff], cu=catchUp(t); sigma=d.err*(0.55+(1-q))*cu; if(Math.random()<d.bad*cu) sigma*=2.6; netErr=Math.random()<d.bad*0.35*cu; }
   if(eff==='smash') sigma*=1.25;
   if(doubleVitre) sigma*=0.6;
+  if(cv) pw=0;
+  const long=pw>0 && !state.perfect ? od*pw*rand(0,1.4) : 0; // un coup trop appuyé file aussi plus long
+  if(pw>0 && !state.perfect){ sigma*=1+1.6*pw; if(Math.random()<0.12*pw) netErr=true; } // la puissance se paie en précision
   const xl=CW-(doubleVitre?0.55:0.7); let tx=clamp(aimX,-xl,xl)+gauss()*sigma;
   if(!pl.human) tx=clamp(tx,-(CW-0.3),CW-0.3); // l'IA rate en longueur ou dans le filet, rarement en tapant le côté avant le rebond
-  const tz2=tz+gauss()*sigma*0.75;
+  const tz2=tz+gauss()*sigma*0.75+long;
   ball.kick=0; ball.trick=null;
   if(trick){ eff='smash'; ball.v.copy(trick.v); ball.kick=trick.kick; ball.trick=trick.ok?trick.kind:null; }
   else if(cv){ eff='contre'; ball.v.copy(cv); } else ball.v.copy(solve(p0,tx,tz2,T,netErr));
@@ -1767,7 +1781,9 @@ function doHit(pl,type,q,trick,forceCV){
   swingAnim(pl, eff==='smash'||eff==='bandeja'?'smash':eff==='contre'?'lob':eff);
   if(state.perfect){ ripple(pl.pos.x,0.03,pl.pos.z,'floor',0xd9ff3c); callout('parfait',pl.pos,'mini'); feel(0.06,0); } // discret : au sol, sous le joueur
   else if(eff==='smash' && pl.human) feel(0.05,0.12);
-  sfx('hit',{pl:ALL.indexOf(pl),v:state.perfect?1:eff==='smash'?1:eff==='lob'||eff==='contre'?0.55:0.75});
+  if(pw>0.6 && pl.human) feel(0.04,0.1);
+  if(pl===ME && !state.demo){ state.myHits=(state.myHits||0)+1; if(state.myHits===3) tip('charge'); }
+  sfx('hit',{pl:ALL.indexOf(pl),v:state.perfect||pw>0.6?1:eff==='smash'?1:eff==='lob'||eff==='contre'?0.55:0.75});
   if(eff==='contre'){ pl.faceBack=0.5; callout('CONTRE-VITRE !',p0,pl.team===0?'good':'info'); tip('contre'); }
   state.planT=0;
   for(const p of opps) p.react=DIFF[o===0?partnerDiff():settings.diff].react;
@@ -1775,6 +1791,7 @@ function doHit(pl,type,q,trick,forceCV){
     let label=null;
     if(trick) label=trick.kind==='por3'?'SMASH POR 3':trick.kind==='por4'?'SMASH POR 4':'SMASH DANS LA VITRE';
     else if(eff==='contre') label=null;
+    else if(pw>0.6 && eff!=='lob') label=eff==='smash'?'SMASH PUISSANT':eff==='bandeja'?'BANDEJA PUISSANTE':'COUP PUISSANT';
     else if(eff==='bandeja') label='BANDEJA';
     else if(eff==='smash') label='SMASH !';
     else if(glassRet) label='SORTIE DE VITRE';
@@ -1871,7 +1888,9 @@ function aiShot(pl){
   }
   else if(oppsNet && !near && Math.random()<0.45) type='lob';
   else if(!near && Math.random()<0.1) type='lob';
-  doHit(pl,type,rand(0.55,1));
+  // l'IA charge aussi des coups puissants, plus souvent à haut niveau, avec le même risque d'erreur
+  const pc={easy:0.12,normal:0.22,pro:0.32}[pl.team===0?'normal':settings.diff]||0.2;
+  doHit(pl,type,rand(0.55,1),null,false,type!=='lob' && Math.random()<pc ? rand(0.5,1) : 0);
 }
 
 /* ===================== AI planning ===================== */
@@ -1976,13 +1995,13 @@ window.addEventListener('keydown',e=>{
   if(KEYMAP[e.code]){ keys[KEYMAP[e.code]]=true; e.preventDefault(); }
   if(e.repeat) return;
   if(e.code==='KeyQ' || e.code==='KeyJ') queueShot('lob');
-  else if(e.code==='KeyE' || e.code==='KeyK') queueShot('smash');
-  else if(e.code==='KeyL'){ queueShot('volley'); }
-  else if(e.code==='Space'){ queueShot('volley'); e.preventDefault(); }
+  else if(e.code==='KeyE' || e.code==='KeyK'){ queueShot('smash'); chargeStart(); }
+  else if(e.code==='KeyL'){ queueShot('volley'); chargeStart(); }
+  else if(e.code==='Space'){ queueShot('volley'); chargeStart(); e.preventDefault(); }
   else if(e.code==='Escape'||e.code==='KeyP'){ if(!helpEl.hidden) closeHelp(); else togglePause(); }
 });
-window.addEventListener('keyup',e=>{ if(KEYMAP[e.code]) keys[KEYMAP[e.code]]=false; });
-window.addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; });
+window.addEventListener('keyup',e=>{ if(KEYMAP[e.code]) keys[KEYMAP[e.code]]=false; if(['Space','KeyE','KeyK','KeyL'].includes(e.code)) chargeEnd(); });
+window.addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; chargeEnd(); });
 const joy={id:null,ox:0,oy:0,x:0,y:0};
 const joyzone=document.getElementById('joyzone'), joyEl=document.getElementById('joy'), knob=document.getElementById('knob');
 function joyHome(){ joyEl.style.left=''; joyEl.style.top=''; knob.style.transform=''; }
@@ -2011,7 +2030,7 @@ function padResolve(type){
   hitStart.done=type; clearTimeout(hitStart.to); padGo(type); queueShot(type,0.6);
 }
 hitBtn.addEventListener('pointerdown',e=>{ e.preventDefault(); try{ hitBtn.setPointerCapture(e.pointerId); }catch(_){}
-  hitStart={y:e.clientY,id:e.pointerId,done:null}; hitBtn.classList.add('active');
+  hitStart={y:e.clientY,id:e.pointerId,done:null}; hitBtn.classList.add('active'); chargeStart();
   hitStart.to=setTimeout(()=>padResolve('volley'),150); });
 hitBtn.addEventListener('pointermove',e=>{ if(!hitStart || e.pointerId!==hitStart.id) return;
   const dy=e.clientY-hitStart.y, f=dy<-20?'lob':dy>20?'smash':null; if(!f) return;
@@ -2020,9 +2039,10 @@ hitBtn.addEventListener('pointermove',e=>{ if(!hitStart || e.pointerId!==hitStar
   if(hitStart.done!=='volley') return;
   if(NET.role==='guest' && NET.live){ netSend({t:'shot',type:f}); hitStart.done=f; padGo(f); return; }
   const q=ME.queued; if(q){ q.type=f; hitStart.done=f; padGo(f); } });
-const hitEnd=e=>{ if(!hitStart || e.pointerId!==hitStart.id) return; if(!hitStart.done) padResolve('volley'); clearTimeout(hitStart.to); hitStart=null; hitBtn.classList.remove('active'); };
+const hitEnd=e=>{ if(!hitStart || e.pointerId!==hitStart.id) return; chargeEnd(); if(!hitStart.done) padResolve('volley'); clearTimeout(hitStart.to); hitStart=null; hitBtn.classList.remove('active'); };
 hitBtn.addEventListener('pointerup',hitEnd); hitBtn.addEventListener('pointercancel',hitEnd);
-stage.addEventListener('pointerdown',e=>{ if(e.pointerType==='mouse' && e.button===0 && !document.body.classList.contains('touch')) queueShot('volley',0.6); });
+stage.addEventListener('pointerdown',e=>{ if(e.pointerType==='mouse' && e.button===0 && !document.body.classList.contains('touch')){ queueShot('volley',0.6); chargeStart(); } });
+window.addEventListener('pointerup',e=>{ if(e.pointerType==='mouse') chargeEnd(); });
 function markTouch(){ if(!document.body.classList.contains('touch')){ document.body.classList.add('touch'); setTimeout(joyHome,0); fitCamera(); if(ME && ME.ctl==='local') ME.reach=1.3; showServeHint(); } }
 if(window.matchMedia && matchMedia('(pointer: coarse)').matches) markTouch();
 window.addEventListener('touchstart',markTouch,{passive:true});
@@ -2042,6 +2062,16 @@ const vpMeta=document.querySelector('meta[name=viewport]');
 function resetZoom(){ const vv=window.visualViewport; if(!vv || vv.scale<=1.01) return; const c=vpMeta.content; vpMeta.content=c.replace(/maximum-scale=[^,]*/,'maximum-scale=1.0001'); requestAnimationFrame(()=>{ vpMeta.content=c; window.scrollTo(0,0); }); }
 if(window.visualViewport) visualViewport.addEventListener('resize',()=>setTimeout(resetZoom,250));
 
+// Puissance : rester appuyé (Espace, clic, pad) charge le coup ; pleine en 1,15 s. Un appui bref = coup normal.
+const charge={on:false,t0:0,rel:0}, CH_START=0.25, CH_FULL=1.15, CH_LATE=1.5;
+function chargeStart(){ if(state.demo || state.aim) return; charge.on=true; charge.t0=performance.now(); }
+function chargeEnd(){ if(charge.on){ charge.on=false; charge.rel=performance.now(); } }
+function chargeHeld(q){ // durée d'appui (s) pour le coup en attente, ou -1 si ce n'est pas un coup chargé
+  if(!q || charge.t0<q.at-60) return -1;
+  const end=charge.on?performance.now():charge.rel; if(!charge.on && performance.now()-charge.rel>140) return -1; // relâché trop tôt : coup normal
+  return (end-charge.t0)/1000;
+}
+const chargePower=h=>h<0?0:clamp((h-CH_START)/(CH_FULL-CH_START),0,1);
 function queueShot(type,win){
   if(state.demo || state.paused || state.aim) return;
   if(NET.role==='guest' && NET.live){ netSend({t:'shot',type}); return; } // invité : la frappe est jouée chez l'hôte
@@ -2150,8 +2180,11 @@ function updatePlayers(dt){
         // aucune frappe automatique : le coup ne part que si le joueur a appuyé
         if(d<pl.reach && y>0.14 && y<2.9 && pl.queued){
           // frappe parfaite : appui juste avant le contact, balle près du corps et à bonne hauteur
-          state.perfect = performance.now()-pl.queued.at<170 && d<0.8 && y>0.35 && y<2.5;
-          humanHit(pl,pl.queued.type,state.perfect?1:quality(pl)); state.perfect=false; pl.queued=null;
+          const held=pl===ME?chargeHeld(pl.queued):-1, good=d<0.8 && y>0.35 && y<2.5;
+          // parfait : appui juste avant le contact, ou jauge pleine pile au moment de l'impact
+          state.perfect = good && (performance.now()-pl.queued.at<170 || (held>=CH_FULL-0.15 && held<=CH_LATE));
+          state.shotPower = chargePower(held);
+          humanHit(pl,pl.queued.type,state.perfect?1:quality(pl)); state.perfect=false; state.shotPower=0; pl.queued=null;
         }
         else if(d<pl.reach && contreVitreChance(pl)===1) tip('contre'); // la balle file dans son dos : on lui apprend le contre-vitre (une fois, entre deux points)
       } else {
@@ -2159,7 +2192,7 @@ function updatePlayers(dt){
         if(d<pl.reach && y>0.24 && y<2.85 && (ball.v.y<1.5 || y>0.8) && !waitCV && (!ball.trick || R.glass || ball.trickSave)) aiShot(pl); // règle FIP : après un smash, la balle reste jouable tant qu'elle est dans le camp adverse
       }
     }
-    if(pl.queued){ pl.queued.t-=dt; if(pl.queued.t<=0){ swingAnim(pl,pl.queued.type); pl.queued=null; } }
+    if(pl.queued && !(pl===ME && charge.on)){ pl.queued.t-=dt; if(pl.queued.t<=0){ swingAnim(pl,pl.queued.type); pl.queued=null; } } // tant qu'on charge, le coup attend la balle
 
     animatePlayer(pl,dt,spd);
   }
@@ -2219,6 +2252,14 @@ function updateVisuals(dt){
   if(showLand){ landMark.position.set(f.x,0.015,f.z); landMark2.position.set(f.x,0.015,f.z); const s=1+0.25*Math.sin(tClock*10); landMark2.scale.set(s,s,s); }
   const h=ME;
   youRing.visible=!state.demo; youRing.position.set(h.pos.x,0.018,h.pos.z); youRing.rotation.z+=dt;
+  { const held=state.mode==='rally' && charge.on ? chargeHeld(h.queued) : -1, pw=chargePower(held);
+    powerRing.visible=held>CH_START*0.6;
+    if(powerRing.visible){ powerRing.position.set(h.pos.x,0.02,h.pos.z); powerRing.geometry.setDrawRange(0,6*Math.max(1,Math.round(48*pw)));
+      const sweet=held>=CH_FULL-0.15 && held<=CH_LATE, late=held>CH_LATE;
+      powerRing.material.color.copy(late?PW_COL[2]:sweet?PW_COL[1]:PW_COL[0]).lerp(PW_COL[1],sweet||late?0:pw*0.5);
+      if(sweet) powerRing.scale.setScalar(1+0.05*Math.sin(tClock*30)); else powerRing.scale.setScalar(1); }
+    hitBtn.style.setProperty('--pw',powerRing.visible?pw.toFixed(3):'0');
+    hitBtn.style.setProperty('--pwc','#'+powerRing.material.color.getHexString()); }
   const ti=h.intercept;
   targetMark.visible=!state.demo && state.mode==='rally' && R.live && h.assigned && !!ti;
   if(targetMark.visible && R.lastHitter!==h.team) tip('incoming');
