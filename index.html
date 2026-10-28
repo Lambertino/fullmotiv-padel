@@ -390,11 +390,11 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
       </div>
       <div id="cards">
         <div class="card" data-testid="card-player">
-          <div class="avatar" style="background:linear-gradient(135deg,#ff8fb4,#7a2f4c)">VS</div>
+          <div class="avatar" id="av0" style="background:linear-gradient(135deg,#ff8fb4,#a65d76)">VS</div>
           <div class="meta"><div class="nm">Vous <small id="youRole">DRIVE</small></div><div class="en"><i id="en0"></i></div><div class="pr">Profil agressif</div></div>
         </div>
         <div class="card" data-testid="card-partner">
-          <div class="avatar" style="background:linear-gradient(135deg,#ffc9d8,#9a4a68)">IA</div>
+          <div class="avatar" id="av1" style="background:linear-gradient(135deg,#ffc4d4,#a67f8a)">IA</div>
           <div class="meta"><div class="nm">Partenaire <small id="mateRole">REVÉS · IA</small></div><div class="en"><i id="en1"></i></div><div class="pr">Profil défensif</div></div>
         </div>
       </div>
@@ -1077,7 +1077,7 @@ function setKits(a,b){
   KIT=[a,b];
   for(const p of ALL){ const k=KITS[KIT[p.team]]; dressPlayer(p, k.shirt[p.idx], k.shorts); }
   document.documentElement.style.setProperty('--k0',KITS[a].css); document.documentElement.style.setProperty('--k1',KITS[b].css);
-  teamNames();
+  teamNames(); paintAvatars();
 }
 function randomKits(){ // deux tenues bien distinctes, lisibles sur le terrain du jour, jamais la même affiche deux fois de suite
   const ok=i=>!KITS[i].avoid.includes(surface);
@@ -1085,6 +1085,14 @@ function randomKits(){ // deux tenues bien distinctes, lisibles sur le terrain d
     if(a===b || !ok(a) || !ok(b) || KIT_CLASH.some(([x,y])=>(x===a&&y===b)||(x===b&&y===a))) continue;
     if((a===KIT[0]&&b===KIT[1])||(a===KIT[1]&&b===KIT[0])) continue;
     return setKits(a,b); }
+}
+// Avatars des cartes aux couleurs de la tenue de votre équipe ; texte foncé sur les maillots clairs pour rester lisible
+function paintAvatars(){
+  const me=ME||ALL[0], k=KITS[KIT[me.team]], c=new THREE.Color();
+  [[document.getElementById('av0'),me.idx],[document.getElementById('av1'),1-me.idx]].forEach(([el,i])=>{ if(!el) return;
+    const hex=k.shirt[i], a='#'+c.setHex(hex).getHexString(), b='#'+c.multiplyScalar(0.65).getHexString();
+    const lum=0.2126*((hex>>16)&255)+0.7152*((hex>>8)&255)+0.0722*(hex&255);
+    el.style.background=`linear-gradient(135deg,${a},${b})`; el.style.color=lum>150?'#0b2b2d':'#fff'; });
 }
 function teamNames(){
   TEAM[0]=SINGLE?(myName()||'Vous'):KITS[KIT[0]].name; TEAM[1]=SINGLE?'Adversaire':KITS[KIT[1]].name;
@@ -2676,6 +2684,7 @@ function guestHostLeft(){ matchStop('match_quit',{where:'host_left'});
 
 // ----- commun -----
 function setCardNames(){
+  paintAvatars();
   const nm=(i,fb)=>(NET.slots[i]&&NET.slots[i].name)||fb, sp=slotPlayers(), mi=sp.indexOf(ME), mate=sp.findIndex(p=>p!==ME && p.team===ME.team);
   const c0=document.querySelector('[data-testid=card-player] .nm'), c1=document.querySelector('[data-testid=card-partner] .nm');
   if(c0) c0.firstChild.textContent=(NET.live?nm(mi,myName()||'Vous'):(myName()||'Vous'))+' ';
