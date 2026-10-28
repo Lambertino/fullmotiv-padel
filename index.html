@@ -306,6 +306,15 @@ body.touch #tip{top:calc(150px + env(safe-area-inset-top,0px))}
 .cta.alt:hover{background:rgba(255,177,200,.1)}
 .join-name{max-width:340px}
 .menu-name{max-width:340px}
+.step{display:flex;flex-direction:column;gap:18px}
+.step-head h2{margin:0;font:800 26px/1 var(--display);letter-spacing:.04em;text-transform:uppercase}
+.step-head p{margin:6px 0 0;font:400 14px/1.4 var(--body);color:var(--muted)}
+.profile-chip{align-self:flex-start;display:inline-flex;align-items:center;gap:10px;padding:7px 12px;border-radius:999px;border:1px solid var(--edge);background:rgba(11,43,45,.8);color:var(--fg);font:600 13.5px/1.2 var(--body)}
+.profile-chip:hover{border-color:var(--accent)}
+.chip-edit{color:var(--accent)}
+.match-sum{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font:500 14px/1.4 var(--body);color:var(--muted)}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);font:600 14px/1.4 var(--body);text-decoration:underline;text-underline-offset:3px}
+.match-opts{display:flex;flex-direction:column;gap:14px}
 .lobby{position:absolute;top:calc(66px + env(safe-area-inset-top,0px));right:16px;width:min(340px,calc(100% - 32px));box-sizing:border-box;
   background:var(--panel-solid);border:1px solid var(--edge);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);z-index:6;overflow-x:hidden;
   overflow-y:auto;max-height:calc(100% - 66px - 250px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));font-family:var(--body);} /* ne recouvre pas le pad de frappe */
@@ -383,7 +392,7 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
         </div>
         <div class="card" data-testid="card-partner">
           <div class="avatar" style="background:linear-gradient(135deg,#ffc9d8,#9a4a68)">IA</div>
-          <div class="meta"><div class="nm">Partenaire <small>REVÉS · IA</small></div><div class="en"><i id="en1"></i></div><div class="pr">Profil défensif</div></div>
+          <div class="meta"><div class="nm">Partenaire <small id="mateRole">REVÉS · IA</small></div><div class="en"><i id="en1"></i></div><div class="pr">Profil défensif</div></div>
         </div>
       </div>
       </div>
@@ -407,27 +416,40 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
   <div id="menu" class="overlay" data-testid="menu">
     <div class="panel">
       <div class="brand"><img src="favicon.png" alt="" width="52" height="52"><h1 class="logo"><span class="sr">Fullmotiv</span><svg viewBox="99 0 393 90" aria-hidden="true"><path d="m463.12 1.24-11.75 67.53h1.11L474.5 1.24h17.31l-31.29 86.58h-26.96L445.8 1.24h17.32ZM442.98 1.24l-21.52 86.58h-17.32l21.53-86.58h17.31ZM418.7 16.2h-12.74l-17.81 71.5h-17.32l17.81-71.5h-12.62l3.72-15.09h42.67l-3.71 15.1ZM327.22 22.51c1.9-7.26 5.2-12.82 9.9-16.7C341.88 1.94 347.82 0 354.91 0c7.26 0 12.37 1.98 15.34 5.94 2.97 3.87 3.55 9.4 1.73 16.57l-10.88 43.9c-1.82 7.27-5.2 12.87-10.14 16.83-4.87 3.88-10.93 5.81-18.19 5.81-7.09 0-12.08-1.93-14.96-5.81-2.8-3.88-3.3-9.48-1.49-16.82l10.89-43.9Zm6.06 45.15c-1 4.28.12 6.43 3.34 6.43 3.46 0 5.73-2.15 6.8-6.43l11.63-46.26c.99-4.2-.13-6.31-3.34-6.31a6.4 6.4 0 0 0-4.33 1.6c-1.16 1.08-1.98 2.65-2.48 4.7l-11.62 46.27ZM294.66 1.24l-9.16 56.9h1.24l19.17-56.9h22.51l-21.64 86.58h-15.96l16.08-56.53h-1.11l-21.4 56.53h-11.38l6.8-56.53h-1.1l-12.25 56.53h-15.83l21.52-86.58h22.5ZM255.16 1.11l-17.93 71.62h14.22l-3.71 15.09H216.2l21.65-86.7h17.31ZM220.74 1.11 202.8 72.73h14.23l-3.71 15.09h-31.54l21.64-86.7h17.32ZM172.3 1.24l-16.58 66.42c-1.07 4.28-.04 6.43 3.1 6.43 1.48 0 2.8-.54 3.95-1.61a9.93 9.93 0 0 0 2.48-4.82l16.57-66.42h17.32l-16.2 65.18c-1.82 7.26-5.16 12.86-10.03 16.82-4.86 3.88-10.88 5.81-18.05 5.81-7.01 0-11.92-1.93-14.72-5.81-2.8-3.88-3.26-9.48-1.36-16.82l16.2-65.18h17.32ZM133.92 16.2l-5.2 20.78h13.49l-3.71 14.97h-13.48l-8.9 35.74H98.8l21.64-86.58h31.54l-3.83 15.1h-14.23Z"/></svg></h1></div>
-      <label class="lb-name menu-name"><span>Votre prénom ou pseudo</span><input id="menuName" maxlength="14" placeholder="Facultatif" autocomplete="nickname" spellcheck="false" data-testid="input-name"></label>
-      <fieldset class="seg"><legend>Terrain</legend>
-        <label><input type="radio" name="players" id="p-2v2" value="2v2" checked><span>2 contre 2<small>Terrain 20 × 10 m</small></span></label>
-        <label><input type="radio" name="players" id="p-1v1" value="1v1"><span>1 contre 1<small>Terrain 20 × 6 m</small></span></label>
-      </fieldset>
-      <fieldset class="seg"><legend>Format</legend>
-        <label><input type="radio" name="format" id="f-quick" value="quick" checked><span>Match rapide<small>1 set de 4 jeux, tie-break à 4-4</small></span></label>
-        <label><input type="radio" name="format" id="f-full" value="full"><span>Match complet<small>2 sets gagnants de 6 jeux, tie-break à 6-6</small></span></label>
-      </fieldset>
-      <fieldset class="seg"><legend>À 40-40</legend>
-        <label><input type="radio" name="golden" id="g-gold" value="1" checked><span>Point en or<small>Le point suivant gagne le jeu</small></span></label>
-        <label><input type="radio" name="golden" id="g-adv" value="0"><span>Avantages<small>Deux points d'écart</small></span></label>
-      </fieldset>
-      <fieldset class="seg"><legend>Niveau</legend>
-        <label><input type="radio" name="diff" id="d-easy" value="easy"><span>1/2/3</span></label>
-        <label><input type="radio" name="diff" id="d-normal" value="normal" checked><span>4/5/6</span></label>
-        <label><input type="radio" name="diff" id="d-pro" value="pro"><span>7/8</span></label>
-      </fieldset>
+      <section id="profileStep" class="step" hidden data-testid="profile">
+        <div class="step-head"><h2>Votre profil</h2><p>Trois réponses, une seule fois. Vous pourrez les changer à tout moment.</p></div>
+        <label class="lb-name menu-name"><span>Votre prénom ou pseudo</span><input id="menuName" maxlength="14" placeholder="Facultatif" autocomplete="nickname" spellcheck="false" data-testid="input-name"></label>
+        <fieldset class="seg"><legend>En 2 contre 2, vous jouez plutôt</legend>
+          <label><input type="radio" name="side" id="s-right" value="right" checked><span>À droite<small>Drive</small></span></label>
+          <label><input type="radio" name="side" id="s-left" value="left"><span>À gauche<small>Revés</small></span></label>
+        </fieldset>
+        <fieldset class="seg"><legend>Votre niveau</legend>
+          <label><input type="radio" name="diff" id="d-easy" value="easy"><span>1/2/3</span></label>
+          <label><input type="radio" name="diff" id="d-normal" value="normal" checked><span>4/5/6</span></label>
+          <label><input type="radio" name="diff" id="d-pro" value="pro"><span>7/8</span></label>
+        </fieldset>
+        <div class="row"><button class="cta" id="profileGo" data-testid="btn-profile">C'est parti</button></div>
+      </section>
+      <section id="homeStep" class="step">
+        <button class="profile-chip" id="profileChip" data-testid="profile-chip" aria-label="Modifier votre profil"><span id="chipText"></span><span class="chip-edit" aria-hidden="true">✎</span></button>
       <div class="row play-row">
         <button class="cta" id="playBtn" data-testid="btn-play">Jouer</button>
         <button class="cta alt" id="friendsBtn" data-testid="btn-friends">Jouer avec des amis</button>
+      </div>
+      <div class="match-sum"><span id="matchSum"></span><button class="linkbtn" id="matchEdit" aria-expanded="false" aria-controls="matchOpts">Modifier</button></div>
+      <div id="matchOpts" class="match-opts" hidden>
+        <fieldset class="seg"><legend>Terrain</legend>
+          <label><input type="radio" name="players" id="p-2v2" value="2v2" checked><span>2 contre 2<small>Terrain 20 × 10 m</small></span></label>
+          <label><input type="radio" name="players" id="p-1v1" value="1v1"><span>1 contre 1<small>Terrain 20 × 6 m</small></span></label>
+        </fieldset>
+        <fieldset class="seg"><legend>Format</legend>
+          <label><input type="radio" name="format" id="f-quick" value="quick" checked><span>Match rapide<small>1 set de 4 jeux, tie-break à 4-4</small></span></label>
+          <label><input type="radio" name="format" id="f-full" value="full"><span>Match complet<small>2 sets gagnants de 6 jeux, tie-break à 6-6</small></span></label>
+        </fieldset>
+        <fieldset class="seg"><legend>À 40-40</legend>
+          <label><input type="radio" name="golden" id="g-gold" value="1" checked><span>Point en or<small>Le point suivant gagne le jeu</small></span></label>
+          <label><input type="radio" name="golden" id="g-adv" value="0"><span>Avantages<small>Deux points d'écart</small></span></label>
+        </fieldset>
       </div>
       <div class="row">
         <button class="cta ghost" id="rulesBtn" data-testid="btn-rules">Règles & touches</button>
@@ -442,6 +464,7 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
         <b>Pouce gauche</b><span>Joystick pour se déplacer et viser</span>
         <b>Pad de frappe</b><span>Toucher : frapper · glisser ↑ : lob · glisser ↓ : smash</span>
       </div>
+      </section>
     </div>
   </div>
 
@@ -661,7 +684,7 @@ function gauss(){ let u=0,v=0; while(!u) u=Math.random(); while(!v) v=Math.rando
 function sideHeights(z){ const a=Math.abs(z); if(a>=8) return [3,4]; if(a>=6) return [2,3]; return [0,3]; }
 
 /* ===================== réglages de jeu ===================== */
-const settings = {players:'2v2', format:'quick', golden:true, diff:'normal'};
+const settings = {side:'right', players:'2v2', format:'quick', golden:true, diff:'normal'};
 // Niveaux. easy/normal/pro : adversaires ; mate/matePro : votre partenaire, qui garde son niveau pour ne pas vous handicaper.
 //  speed : vitesse de course de l'IA (m/s) · err : imprécision de ses frappes · react : temps de réaction (s) · bad : part de fautes directes
 //  ballScale : vitesse de la balle · reach / win : portée en plus et durée de prise en compte de l'appui du joueur
@@ -2233,12 +2256,13 @@ function readSettings(){
   settings.format=document.querySelector('input[name=format]:checked').value;
   settings.golden=document.querySelector('input[name=golden]:checked').value==='1';
   settings.diff=document.querySelector('input[name=diff]:checked').value;
+  settings.side=document.querySelector('input[name=side]:checked').value;
   try{ localStorage.setItem('fullmotiv-settings',JSON.stringify(settings)); }catch(e){}
 }
 function loadSettings(){
   try{ const s=JSON.parse(localStorage.getItem('fullmotiv-settings')||'null'); if(!s) return;
     const set=(n,v)=>{ const el=document.querySelector(`input[name=${n}][value="${v}"]`); if(el) el.checked=true; };
-    set('players',s.players||'2v2'); set('format',s.format); set('golden',s.golden?'1':'0'); set('diff',s.diff);
+    set('players',s.players||'2v2'); set('format',s.format); set('golden',s.golden?'1':'0'); set('diff',s.diff); set('side',s.side||'right');
   }catch(e){}
 }
 // Double ou simple : largeur du terrain, joueurs en jeu, carte du partenaire
@@ -2248,7 +2272,11 @@ function setLayout(single=settings.players==='1v1', solo=false){
   for(const p of ALL){ const on=solo ? p===ME : (!single || p.idx===0); p.parts.g.visible=p.parts.shadow.visible=on; if(on) players.push(p); }
   machine.visible=solo;
   document.querySelector('[data-testid=card-partner]').hidden=single||solo;
-  document.getElementById('youRole').textContent=single?'SIMPLE':'DRIVE';
+  // côté préféré (solo) : en ligne, chacun garde le côté de sa place dans le salon
+  const left=settings.side==='left' && !NET.role;
+  for(const p of ALL) p.sideSign=(p.team===0?1:-1)*(p.idx===0?1:-1)*(p.team===0 && left?-1:1);
+  document.getElementById('youRole').textContent=single?'SIMPLE':left?'REVÉS':'DRIVE';
+  document.getElementById('mateRole').textContent=(left?'DRIVE':'REVÉS')+' · IA';
   TEAM[0]=single?(myName()||'Vous'):'Roses'; TEAM[1]=single?'Adversaire':'Blancs';
   [0,1].forEach(t=>{ document.getElementById('srv'+t).parentNode.lastChild.textContent=TEAM[t]; });
 }
@@ -2633,8 +2661,30 @@ function applyName(n){
   saveName(n);
   for(const id of ['menuName','lbName','joinName']){ const el=document.getElementById(id); if(el && el!==document.activeElement) el.value=n; }
   if(SINGLE){ TEAM[0]=n||'Vous'; const r=document.getElementById('srv0'); if(r) r.parentNode.lastChild.textContent=TEAM[0]; }
-  setCardNames();
+  setCardNames(); renderHome();
 }
+/* ===== accueil : profil au premier lancement, puis Jouer en un clic ===== */
+const profileStep=document.getElementById('profileStep'), homeStep=document.getElementById('homeStep');
+const radioText=n=>{ const el=document.querySelector(`input[name=${n}]:checked`); return el?el.nextElementSibling.firstChild.textContent.trim():''; };
+function renderHome(){
+  document.getElementById('chipText').textContent=[myName()||'Votre profil', settings.side==='left'?'Gauche':'Droite', 'Niveau '+LEVEL[settings.diff]].join(' · ');
+  document.getElementById('matchSum').textContent=[radioText('players'), radioText('format'), radioText('golden')].join(' · ');
+}
+function showProfile(first){
+  profileStep.hidden=false; homeStep.hidden=true;
+  document.getElementById('profileGo').textContent=first?"C'est parti":'Enregistrer';
+  if(!document.body.classList.contains('touch')) document.getElementById('menuName').focus(); // pas de clavier qui surgit sur mobile
+}
+function showHome(){ profileStep.hidden=true; homeStep.hidden=false; renderHome(); }
+document.getElementById('profileGo').addEventListener('click',()=>{ readSettings(); try{ localStorage.setItem('fullmotiv-profile','1'); }catch(e){} showHome(); document.getElementById('playBtn').focus(); });
+document.getElementById('profileChip').addEventListener('click',()=>showProfile(false));
+document.getElementById('matchEdit').addEventListener('click',e=>{ const o=document.getElementById('matchOpts'), open=o.hidden; o.hidden=!open; e.currentTarget.textContent=open?'Fermer':'Modifier'; e.currentTarget.setAttribute('aria-expanded',String(open)); });
+document.querySelectorAll('#menu input[type=radio]').forEach(r=>r.addEventListener('change',()=>{ readSettings(); renderHome(); }));
+{ // profil validé = '1' ; nouveau joueur qui n'a pas encore validé = 'pending' ; joueur venu avant cet écran = réglages déjà enregistrés
+  let known=true; try{ const f=localStorage.getItem('fullmotiv-profile');
+    if(f===null && !localStorage.getItem('fullmotiv-settings')) localStorage.setItem('fullmotiv-profile','pending');
+    known = f==='1' || (f===null && !!localStorage.getItem('fullmotiv-settings')); }catch(e){}
+  if(known) showHome(); else showProfile(true); }
 const menuNameEl=document.getElementById('menuName');
 menuNameEl.value=myName();
 menuNameEl.addEventListener('input',e=>applyName(cleanName(e.target.value)));
@@ -2679,7 +2729,7 @@ async function boot(){
   makePlayer(1,0,'adversaires',{shirt:0xf3efe6,shorts:0x1d4a44,skin:0xf1cfb0,hair:0x6b4a2b,design:4,accent:0x1d4a44,style:'cap',number:'4',bottom:'shorts'},false);
   ME=ALL[0];
   makePlayer(1,1,'adversaires',{shirt:0xdcefe8,shorts:0x1d4a44,skin:0x8d5a3b,hair:0x1b1b1b,design:0,accent:0x0b2b2d,style:'ponytail-band',number:'9',bottom:'skirt'},false);
-  loadSettings(); readSettings(); setLayout();
+  loadSettings(); readSettings(); setLayout(); renderHome();
   document.querySelectorAll('input[name=players]').forEach(r=>r.addEventListener('change',()=>{ readSettings(); setLayout(); if(state.demo) setupPoint(false); })); // aperçu du terrain dans le menu
   if(/[?&]og\b/.test(location.search)){ document.body.classList.add('og'); fitCamera(); }
   // diagnostic (tests) : ?debug expose l'état du jeu dans la console
