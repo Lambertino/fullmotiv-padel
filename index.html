@@ -315,6 +315,7 @@ body.touch #tip{top:calc(150px + env(safe-area-inset-top,0px))}
 .match-sum{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font:500 14px/1.4 var(--body);color:var(--muted)}
 .linkbtn{background:none;border:0;padding:0;color:var(--accent);font:600 14px/1.4 var(--body);text-decoration:underline;text-underline-offset:3px}
 .match-opts{display:flex;flex-direction:column;gap:14px}
+.seg small .lvl{display:block;font-style:normal;font-weight:700;color:var(--fg);margin-bottom:1px}
 .lobby{position:absolute;top:calc(66px + env(safe-area-inset-top,0px));right:16px;width:min(340px,calc(100% - 32px));box-sizing:border-box;
   background:var(--panel-solid);border:1px solid var(--edge);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);z-index:6;overflow-x:hidden;
   overflow-y:auto;max-height:calc(100% - 66px - 250px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));font-family:var(--body);} /* ne recouvre pas le pad de frappe */
@@ -424,9 +425,9 @@ body.touch .lobby{top:calc(84px + env(safe-area-inset-top,0px));left:16px;right:
           <label><input type="radio" name="side" id="s-left" value="left"><span>À gauche<small>Revés</small></span></label>
         </fieldset>
         <fieldset class="seg"><legend>Votre niveau</legend>
-          <label><input type="radio" name="diff" id="d-easy" value="easy"><span>1/2/3</span></label>
-          <label><input type="radio" name="diff" id="d-normal" value="normal" checked><span>4/5/6</span></label>
-          <label><input type="radio" name="diff" id="d-pro" value="pro"><span>7/8</span></label>
+          <label><input type="radio" name="diff" id="d-easy" value="easy"><span>1/2/3<small><em class="lvl">Débutant</em>Vous découvrez le padel</small></span></label>
+          <label><input type="radio" name="diff" id="d-normal" value="normal" checked><span>4/5/6<small><em class="lvl">Intermédiaire</em>Vous jouez avec les vitres</small></span></label>
+          <label><input type="radio" name="diff" id="d-pro" value="pro"><span>7/8<small><em class="lvl">Confirmé</em>Vous jouez en tournoi</small></span></label>
         </fieldset>
         <div class="row"><button class="cta" id="profileGo" data-testid="btn-profile">C'est parti</button></div>
       </section>
