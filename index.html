@@ -826,6 +826,11 @@ function bar(a, b, th, material){
 }
 
 /* ===================== arena ===================== */
+// Couleurs de gazon des vrais terrains, tirées au sort à chaque partie (teintes assombries comme le vert d'origine, qui reçoit la lumière)
+const SURFACES=[0x125446 /* vert */, 0x1b4596 /* bleu */, 0x45237a /* violet */, 0x8a3226 /* terre battue */];
+let surface=0, courtMat=null;
+function setSurface(i){ surface=i; if(courtMat) courtMat.color.setHex(SURFACES[i]); }
+function randomSurface(){ let i; do{ i=Math.random()*SURFACES.length|0; } while(i===surface); setSurface(i); }
 // Terrain (sol, lignes, vitres, grillage, filet, sponsors) : reconstruit quand on passe du double au simple.
 let courtG=null;
 function buildCourt(W){
@@ -834,9 +839,9 @@ function buildCourt(W){
   const add=m=>{ courtG.add(m); return m; };
   // court floor — big diamond tiles like a broadcast court
   const cg=new THREE.PlaneGeometry(2*W,20,2*W,20).toNonIndexed();
-  facet(cg,0x125446,0.006,(x,y)=>{ const u=Math.floor((x+y+30)/2.5), v=Math.floor((x-y+30)/2.5); return ((u+v)%2)?0.03:-0.02; });
+  facet(cg,0xffffff,0.006,(x,y)=>{ const u=Math.floor((x+y+30)/2.5), v=Math.floor((x-y+30)/2.5); return ((u+v)%2)?0.03:-0.02; });
   const tm=TURF.map.clone(), tn=TURF.nrm.clone(); for(const t of [tm,tn]){ t.needsUpdate=true; t.repeat.set(2*W/1.3,20/1.3); }
-  const court=new THREE.Mesh(cg, mat(0xffffff,{vertexColors:true,roughness:0.92,map:tm,normalMap:tn,normalScale:new THREE.Vector2(0.45,0.45)})); court.receiveShadow=true; court.rotation.x=-Math.PI/2; add(court);
+  courtMat=mat(SURFACES[surface],{vertexColors:true,roughness:0.92,map:tm,normalMap:tn,normalScale:new THREE.Vector2(0.45,0.45)}); const court=new THREE.Mesh(cg, courtMat); court.receiveShadow=true; court.rotation.x=-Math.PI/2; add(court);
   // lines (padel: only service lines + central line, walls are the boundary)
   const lm=basic(0xf4f8ff);
   const line=(x,z,w,d)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),lm); m.rotation.x=-Math.PI/2; m.position.set(x,0.006,z); add(m); };
@@ -2160,7 +2165,7 @@ function applyRoles(){
   }
 }
 function startMatch(){
-  endPractice(); readSettings(); setLayout(); state.aimCount=0; state.lastAim=0; state.demo=false; state.paused=false; resetScore();
+  endPractice(); readSettings(); setLayout(); randomSurface(); state.aimCount=0; state.lastAim=0; state.demo=false; state.paused=false; resetScore();
   applyRoles();
   menuEl.hidden=true; endEl.hidden=true; pauseEl.hidden=true; hudEl.hidden=false;
   callEl.innerHTML='';
@@ -2395,7 +2400,7 @@ function hostDrop(c){
   lobbyBroadcast();
 }
 function lobbyBroadcast(){ renderLobby(); netBroadcast({t:'lobby',slots:NET.slots.map(x=>x?x.name:null),players:settings.players}); }
-function startMsg(){ return {t:'start',settings:{format:settings.format,golden:settings.golden,diff:settings.diff,players:settings.players},names:NET.slots.map(x=>x?x.name:null)}; }
+function startMsg(){ return {t:'start',settings:{format:settings.format,golden:settings.golden,diff:settings.diff,players:settings.players},surface,names:NET.slots.map(x=>x?x.name:null)}; }
 function startNetMatch(){
   if(NET.role!=='host') return;
   const sp=slotPlayers();
@@ -2449,7 +2454,7 @@ function guestOnData(m){
   else if(m.t==='bye'){ guestHostLeft(); }
 }
 function guestStart(m){
-  Object.assign(settings,m.settings); setLayout();
+  Object.assign(settings,m.settings); setLayout(); if(m.surface!=null) setSurface(m.surface);
   NET.slots=m.names.map(n=>n?{name:n}:null);
   for(const p of ALL) p.ctl='ai';
   ME=slotPlayers()[NET.meSlot]; ME.ctl='local';
